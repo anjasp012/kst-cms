@@ -19,14 +19,13 @@ import {
   FlaskConical, 
   Layers, 
   Image as ImageIcon,
-  ArrowLeft,
   CheckCircle2,
   Save,
   Compass,
   Map,
   FileText
 } from 'lucide-react'
-import { uploadFile, fetchKSTDetail, createKST, updateKST } from '@/lib/api'
+import { uploadFile, fetchKSTDetail, createKST, updateKST, fetchKSTCategories } from '@/lib/api'
 import { getImageUrl } from '@/lib/utils'
 import { 
   fetchProvinces, 
@@ -55,6 +54,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
   const [loadingWilayah, setLoadingWilayah] = useState(false)
   const [manualKotaInput, setManualKotaInput] = useState(false)
 
+  // Master Categories State (Tema Riset, Tipe Fasilitas, Potensi Kolaborasi)
+  const [categories, setCategories] = useState({
+    tema_riset: ['Energi & Material', 'Kesehatan', 'Pangan & Pertanian', 'Lingkungan', 'Teknologi Digital', 'Maritim'],
+    tipe_fasilitas: ['Laboratorium', 'Observatorium', 'Pilot Plant', 'Akses Data & Koleksi'],
+    potensi_kolaborasi: ['Industri', 'Akademisi', 'Pemerintah', 'Komunitas'],
+  })
+
   const [formData, setFormData] = useState({
     nama: '',
     slug: '',
@@ -70,7 +76,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
     // 1. Profil
     deskripsi_profil: '',
     peran_kawasan: '',
-    fokus_utama_raw: 'Pangan, Energi, Laut, Teknologi Digital',
+    fokus_utama: ['Pangan & Pertanian', 'Energi & Material', 'Teknologi Digital'],
     terhubung_dengan: 'Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan.',
 
     // 2. Fasilitas (Murni dinamis via tombol +)
@@ -89,7 +95,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
     highlight_mitra: 0,
 
     // 5. Kolaborasi
-    potensi_kolaborasi_raw: 'Industri, Akademisi, Pemerintah, Komunitas',
+    potensi_kolaborasi: ['Industri', 'Akademisi', 'Pemerintah', 'Komunitas'],
     daftar_kolaborasi: [],
 
     // 6. Galeri Foto
@@ -97,9 +103,19 @@ export default function KSTFormPage({ onSaveSuccess }) {
     is_active: true
   })
 
-  // Load Provinces from API Wilayah Indonesia
+  // Load Categories & Provinces on Mount
   useEffect(() => {
     let isMounted = true
+    fetchKSTCategories().then((res) => {
+      if (isMounted && res) {
+        setCategories(prev => ({
+          tema_riset: res.tema_riset?.length ? res.tema_riset : prev.tema_riset,
+          tipe_fasilitas: res.tipe_fasilitas?.length ? res.tipe_fasilitas : prev.tipe_fasilitas,
+          potensi_kolaborasi: res.potensi_kolaborasi?.length ? res.potensi_kolaborasi : prev.potensi_kolaborasi,
+        }))
+      }
+    })
+
     const loadProvinces = async () => {
       const data = await fetchProvinces()
       if (isMounted && Array.isArray(data)) {
@@ -107,8 +123,28 @@ export default function KSTFormPage({ onSaveSuccess }) {
       }
     }
     loadProvinces()
+
     return () => { isMounted = false }
   }, [])
+
+  // Toggle helpers for pill-badges
+  const toggleTemaRiset = (tema) => {
+    setFormData(prev => {
+      const current = Array.isArray(prev.fokus_utama) ? prev.fokus_utama : []
+      const exists = current.includes(tema)
+      const updated = exists ? current.filter(t => t !== tema) : [...current, tema]
+      return { ...prev, fokus_utama: updated }
+    })
+  }
+
+  const togglePotensiKolaborasi = (kolab) => {
+    setFormData(prev => {
+      const current = Array.isArray(prev.potensi_kolaborasi) ? prev.potensi_kolaborasi : []
+      const exists = current.includes(kolab)
+      const updated = exists ? current.filter(k => k !== kolab) : [...current, kolab]
+      return { ...prev, potensi_kolaborasi: updated }
+    })
+  }
 
   // When Province Changes, fetch its Cities/Regencies & auto-set Wilayah
   const handleProvinceChange = async (provId) => {
@@ -177,7 +213,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
           deskripsi_profil: item.deskripsi_profil || '',
           peran_kawasan: item.peran_kawasan || '',
-          fokus_utama_raw: (item.fokus_utama || []).join(', ') || 'Pangan, Energi, Laut, Teknologi Digital',
+          fokus_utama: Array.isArray(item.fokus_utama) ? item.fokus_utama : [],
           terhubung_dengan: item.terhubung_dengan || 'Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan.',
 
           fasilitas: Array.isArray(item.fasilitas) ? item.fasilitas : [],
@@ -191,7 +227,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
           highlight_program_kolaborasi: item.highlight_program_kolaborasi || (item.daftar_kolaborasi?.length || 0),
           highlight_mitra: item.highlight_mitra || 0,
 
-          potensi_kolaborasi_raw: (item.potensi_kolaborasi || []).join(', ') || 'Industri, Akademisi, Pemerintah, Komunitas',
+          potensi_kolaborasi: Array.isArray(item.potensi_kolaborasi) ? item.potensi_kolaborasi : [],
           daftar_kolaborasi: Array.isArray(item.daftar_kolaborasi) ? item.daftar_kolaborasi : [],
           galeri: Array.isArray(item.galeri) ? item.galeri : [],
           is_active: item.is_active ?? true
@@ -278,9 +314,10 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
   // Facility handlers
   const addFacility = () => {
+    const defaultTipe = categories.tipe_fasilitas?.[0] || 'Laboratorium'
     setFormData(prev => ({
       ...prev,
-      fasilitas: [...prev.fasilitas, { nama: '', tipe: 'Laboratorium', deskripsi: '' }],
+      fasilitas: [...prev.fasilitas, { nama: '', tipe: defaultTipe, deskripsi: '' }],
       highlight_fasilitas: prev.fasilitas.length + 1
     }))
   }
@@ -303,9 +340,10 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
   // Research handlers (+ Button)
   const addResearch = () => {
+    const defaultBidang = categories.tema_riset?.[0] || 'Energi & Material'
     setFormData(prev => ({
       ...prev,
-      riset: [...prev.riset, { judul: '', bidang: 'Pangan & Pertanian', deskripsi: '' }],
+      riset: [...prev.riset, { judul: '', bidang: defaultBidang, deskripsi: '' }],
       highlight_bidang_riset: prev.riset.length + 1
     }))
   }
@@ -351,9 +389,10 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
   // Collaboration partner handlers
   const addPartnerCollab = () => {
+    const defaultTipe = categories.potensi_kolaborasi?.[0] || 'Industri'
     setFormData(prev => ({
       ...prev,
-      daftar_kolaborasi: [...prev.daftar_kolaborasi, { mitra: '', tipe: 'Industri', deskripsi: '' }],
+      daftar_kolaborasi: [...prev.daftar_kolaborasi, { mitra: '', tipe: defaultTipe, deskripsi: '' }],
       highlight_program_kolaborasi: prev.daftar_kolaborasi.length + 1
     }))
   }
@@ -377,6 +416,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
   // Submit Handler
   const handleSubmit = async (e) => {
     e.preventDefault()
+
     if (!formData.nama.trim() || !formData.slug.trim()) {
       toast.error('Nama dan Slug KST wajib diisi')
       return
@@ -398,13 +438,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
         deskripsi_profil: formData.deskripsi_profil.trim() || null,
         peran_kawasan: formData.peran_kawasan.trim() || null,
-        fokus_utama: formData.fokus_utama_raw.split(',').map(s => s.trim()).filter(Boolean),
+        fokus_utama: Array.isArray(formData.fokus_utama) ? formData.fokus_utama : [],
         terhubung_dengan: formData.terhubung_dengan.trim() || null,
 
         fasilitas: formData.fasilitas.filter(f => f.nama.trim()),
         riset: formData.riset.filter(r => r.judul.trim()),
         dampak: formData.dampak.filter(d => d.judul.trim()),
-        potensi_kolaborasi: formData.potensi_kolaborasi_raw.split(',').map(s => s.trim()).filter(Boolean),
+        potensi_kolaborasi: Array.isArray(formData.potensi_kolaborasi) ? formData.potensi_kolaborasi : [],
         daftar_kolaborasi: formData.daftar_kolaborasi.filter(d => d.mitra.trim()),
         galeri: formData.galeri,
         is_active: formData.is_active
@@ -773,20 +813,33 @@ export default function KSTFormPage({ onSaveSuccess }) {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Fokus Utama (Pisahkan dengan koma)</Label>
-              <Input
-                value={formData.fokus_utama_raw}
-                onChange={(e) => setFormData({ ...formData, fokus_utama_raw: e.target.value })}
-                placeholder="Pangan, Energi, Laut, Teknologi Digital, Kesehatan, Material Maju"
-                className="h-9 text-xs"
-              />
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {formData.fokus_utama_raw.split(',').map(s => s.trim()).filter(Boolean).map((tag, idx) => (
-                  <Badge key={idx} variant="secondary" className="text-[11px] font-mono">
-                    {tag}
-                  </Badge>
-                ))}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Tema Riset / Fokus Utama (Kategori Master)</Label>
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  {(formData.fokus_utama || []).length} terpilih
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-500">Klik pill untuk memilih atau membatalkan tema riset yang menjadi fokus utama kawasan ini:</p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {categories.tema_riset.map((tema) => {
+                  const isSelected = (formData.fokus_utama || []).includes(tema)
+                  return (
+                    <button
+                      key={tema}
+                      type="button"
+                      onClick={() => toggleTemaRiset(tema)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer ${
+                        isSelected
+                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-sm'
+                          : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                      }`}
+                    >
+                      {isSelected ? '✓ ' : '+ '}
+                      {tema}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -847,7 +900,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                   className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-3 relative group"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-zinc-400 font-semibold">Fasilitas #{idx + 1}</span>
+                    <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Fasilitas</span>
                     <button
                       type="button"
                       onClick={() => removeFacility(idx)}
@@ -869,17 +922,15 @@ export default function KSTFormPage({ onSaveSuccess }) {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[11px]">Tipe Fasilitas</Label>
+                    <Label className="text-[11px]">Tipe Fasilitas (Kategori Master)</Label>
                     <select
                       value={f.tipe}
                       onChange={(e) => updateFacility(idx, 'tipe', e.target.value)}
                       className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
                     >
-                      <option value="Laboratorium">Laboratorium</option>
-                      <option value="Pilot Plant">Pilot Plant</option>
-                      <option value="Observatorium">Observatorium</option>
-                      <option value="Pusat Analisis Data">Pusat Analisis Data</option>
-                      <option value="Akses Data & Koleksi">Akses Data & Koleksi</option>
+                      {categories.tipe_fasilitas.map((tipe) => (
+                        <option key={tipe} value={tipe}>{tipe}</option>
+                      ))}
                     </select>
                   </div>
 
@@ -966,13 +1017,16 @@ export default function KSTFormPage({ onSaveSuccess }) {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px]">Klaster Bidang</Label>
-                      <Input
+                      <Label className="text-[11px]">Tema Riset (Kategori Master)</Label>
+                      <select
                         value={r.bidang}
                         onChange={(e) => updateResearch(idx, 'bidang', e.target.value)}
-                        placeholder="Pangan & Pertanian"
-                        className="h-8 text-xs bg-white dark:bg-zinc-900"
-                      />
+                        className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
+                      >
+                        {categories.tema_riset.map((tema) => (
+                          <option key={tema} value={tema}>{tema}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 
@@ -1144,10 +1198,41 @@ export default function KSTFormPage({ onSaveSuccess }) {
             </div>
           </div>
 
+          {/* Potensi Kolaborasi Kawasan (Kategori Master) */}
+          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold">Potensi Kolaborasi Kawasan (Kategori Master)</Label>
+              <span className="text-[11px] text-zinc-400 font-mono">
+                {(formData.potensi_kolaborasi || []).length} terpilih
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-500">Pilih sektor mitra kerja sama yang menjadi potensi kolaborasi kawasan:</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {categories.potensi_kolaborasi.map((kolab) => {
+                const isSelected = (formData.potensi_kolaborasi || []).includes(kolab)
+                return (
+                  <button
+                    key={kolab}
+                    type="button"
+                    onClick={() => togglePotensiKolaborasi(kolab)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer ${
+                      isSelected
+                        ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-sm'
+                        : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    {isSelected ? '✓ ' : '+ '}
+                    {kolab}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Mitra Kolaborasi Terhubung */}
           <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-3">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold">Daftar Mitra Kolaborasi (Industri, Akademisi, Pemerintah)</Label>
+              <Label className="text-xs font-semibold">Daftar Mitra Kolaborasi</Label>
               <Button
                 type="button"
                 variant="outline"
@@ -1179,10 +1264,9 @@ export default function KSTFormPage({ onSaveSuccess }) {
                       onChange={(e) => updatePartnerCollab(idx, 'tipe', e.target.value)}
                       className="h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
                     >
-                      <option value="Akademisi">Akademisi</option>
-                      <option value="Industri">Industri</option>
-                      <option value="Pemerintah">Pemerintah</option>
-                      <option value="Komunitas">Komunitas</option>
+                      {categories.potensi_kolaborasi.map((kolab) => (
+                        <option key={kolab} value={kolab}>{kolab}</option>
+                      ))}
                     </select>
                     <Input
                       value={p.deskripsi}

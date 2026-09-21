@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8002/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1';
 
 export function getJwt() {
   return localStorage.getItem('kst_jwt');
@@ -82,7 +82,7 @@ export async function checkApiHealth() {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8002';
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000';
     const res = await fetch(`${backendUrl}/`, { signal: controller.signal });
     clearTimeout(timeoutId);
     return res.ok;
@@ -204,4 +204,24 @@ export async function deleteRegionalPartner(id) {
   return request(`${API_BASE}/kst/partners/${id}`, {
     method: 'DELETE',
   });
+}
+
+// 🏷️ 5. MASTER KATEGORI KST (TEMA RISET, FASILITAS, KOLABORASI)
+let categoriesCache = null;
+
+export async function fetchKSTCategories() {
+  if (categoriesCache) return categoriesCache;
+  try {
+    const res = await request(`${API_BASE}/kst/categories`);
+    categoriesCache = res;
+    return res;
+  } catch (err) {
+    console.error('Failed to fetch categories:', err);
+    return {
+      tema_riset: ['Energi & Material', 'Kesehatan', 'Pangan & Pertanian', 'Lingkungan', 'Teknologi Digital', 'Maritim'],
+      tipe_fasilitas: ['Laboratorium', 'Observatorium', 'Pilot Plant', 'Akses Data & Koleksi'],
+      potensi_kolaborasi: ['Industri', 'Akademisi', 'Pemerintah', 'Komunitas'],
+      raw: []
+    };
+  }
 }
