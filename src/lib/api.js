@@ -193,7 +193,7 @@ export async function deleteRegionalPartner(id) {
   });
 }
 
-// 🏷️ 5. MASTER KATEGORI KST (TEMA RISET, FASILITAS, KOLABORASI)
+// 🏷️ 5. MASTER KATEGORI GABUNGAN (Untuk filter Wonderful BRIN & Form KST)
 let categoriesCache = null;
 
 export async function fetchKSTCategories(forceRefresh = false) {
@@ -213,37 +213,118 @@ export async function fetchKSTCategories(forceRefresh = false) {
   }
 }
 
-export async function fetchCategoriesList(tipe, includeInactive = true) {
-  const query = new URLSearchParams();
-  if (tipe) query.append('tipe', tipe);
-  if (includeInactive) query.append('include_inactive', 'true');
-  query.append('grouped', 'false');
-  const qs = query.toString() ? `?${query.toString()}` : '';
-  return request(`${API_BASE}/kst/categories${qs}`);
+// 🧪 5A. TEMA RISET (Tabel terpisah: kst_themeriset)
+export async function fetchThemes(includeInactive = true) {
+  const qs = includeInactive ? '?include_inactive=true' : '';
+  return request(`${API_BASE}/kst/themeriset${qs}`);
 }
 
-export async function createCategory(payload) {
+export async function createTheme(payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/categories`, {
+  return request(`${API_BASE}/kst/themeriset`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-export async function updateCategory(id, payload) {
+export async function updateTheme(id, payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/categories/${id}`, {
+  return request(`${API_BASE}/kst/themeriset/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
-export async function deleteCategory(id) {
+export async function deleteTheme(id) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/categories/${id}`, {
+  return request(`${API_BASE}/kst/themeriset/${id}`, {
     method: 'DELETE',
   });
 }
+
+// 🏢 5B. TIPE FASILITAS (Tabel terpisah: kst_facilities)
+export async function fetchFacilities(includeInactive = true) {
+  const qs = includeInactive ? '?include_inactive=true' : '';
+  return request(`${API_BASE}/kst/facilities${qs}`);
+}
+
+export async function createFacility(payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/facilities`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateFacility(id, payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/facilities/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteFacility(id) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/facilities/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// 🤝 5C. POTENSI KOLABORASI (Tabel terpisah: kst_collaborations)
+export async function fetchCollaborations(includeInactive = true) {
+  const qs = includeInactive ? '?include_inactive=true' : '';
+  return request(`${API_BASE}/kst/collaborations${qs}`);
+}
+
+export async function createCollaboration(payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/collaborations`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateCollaboration(id, payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/collaborations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteCollaboration(id) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/collaborations/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// Backward-compatible router helper
+export async function fetchCategoriesList(tipe, includeInactive = true) {
+  if (tipe === 'tipe_fasilitas') return fetchFacilities(includeInactive);
+  if (tipe === 'potensi_kolaborasi') return fetchCollaborations(includeInactive);
+  return fetchThemes(includeInactive);
+}
+
+export async function createCategory(payload) {
+  if (payload.tipe === 'tipe_fasilitas') return createFacility(payload);
+  if (payload.tipe === 'potensi_kolaborasi') return createCollaboration(payload);
+  return createTheme(payload);
+}
+
+export async function updateCategory(id, payload, tipe) {
+  if (tipe === 'tipe_fasilitas') return updateFacility(id, payload);
+  if (tipe === 'potensi_kolaborasi') return updateCollaboration(id, payload);
+  return updateTheme(id, payload);
+}
+
+export async function deleteCategory(id, tipe) {
+  if (tipe === 'tipe_fasilitas') return deleteFacility(id);
+  if (tipe === 'potensi_kolaborasi') return deleteCollaboration(id);
+  return deleteTheme(id);
+}
+
 
 // 🇮🇩 6. MASTER WILAYAH & PROVINSI
 export async function fetchProvinces(wilayah) {

@@ -192,7 +192,7 @@ export default function CategoryManagementView({
       }
 
       if (editingItem) {
-        await updateCategory(editingItem.id, payload)
+        await updateCategory(editingItem.id, payload, activeType)
         toast.success(`${config.singular} berhasil diperbarui`)
       } else {
         await createCategory(payload)
@@ -212,7 +212,7 @@ export default function CategoryManagementView({
   // Quick toggle status active/inactive
   const handleToggleActive = async (item) => {
     try {
-      await updateCategory(item.id, { is_active: !item.is_active })
+      await updateCategory(item.id, { is_active: !item.is_active }, activeType)
       toast.success(
         `Status ${item.nama} diubah ke ${!item.is_active ? 'Aktif' : 'Nonaktif'}`
       )
@@ -228,7 +228,7 @@ export default function CategoryManagementView({
     if (!deleteTarget) return
     setDeleting(true)
     try {
-      await deleteCategory(deleteTarget.id)
+      await deleteCategory(deleteTarget.id, activeType)
       toast.success(`${deleteTarget.nama} berhasil dihapus`)
       setDeleteTarget(null)
       await loadItems()
@@ -537,3 +537,4 @@ export default function CategoryManagementView({
     </div>
   )
 }
+
