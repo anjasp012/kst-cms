@@ -196,8 +196,8 @@ export async function deleteRegionalPartner(id) {
 // 🏷️ 5. MASTER KATEGORI KST (TEMA RISET, FASILITAS, KOLABORASI)
 let categoriesCache = null;
 
-export async function fetchKSTCategories() {
-  if (categoriesCache) return categoriesCache;
+export async function fetchKSTCategories(forceRefresh = false) {
+  if (!forceRefresh && categoriesCache) return categoriesCache;
   try {
     const res = await request(`${API_BASE}/kst/categories`);
     categoriesCache = res;
@@ -212,3 +212,72 @@ export async function fetchKSTCategories() {
     };
   }
 }
+
+export async function fetchCategoriesList(tipe, includeInactive = true) {
+  const query = new URLSearchParams();
+  if (tipe) query.append('tipe', tipe);
+  if (includeInactive) query.append('include_inactive', 'true');
+  query.append('grouped', 'false');
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return request(`${API_BASE}/kst/categories${qs}`);
+}
+
+export async function createCategory(payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/categories`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateCategory(id, payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/categories/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteCategory(id) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/categories/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// 🇮🇩 6. MASTER WILAYAH & PROVINSI
+export async function fetchProvinces(wilayah) {
+  const query = new URLSearchParams();
+  if (wilayah) query.append('wilayah', wilayah);
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return request(`${API_BASE}/kst/wilayah/provinces${qs}`);
+}
+
+export async function createProvince(payload) {
+  return request(`${API_BASE}/kst/wilayah/provinces`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateProvince(kode, payload) {
+  return request(`${API_BASE}/kst/wilayah/provinces/${kode}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteProvince(kode) {
+  return request(`${API_BASE}/kst/wilayah/provinces/${kode}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function fetchRegencies(provinceKode, q) {
+  const query = new URLSearchParams();
+  if (provinceKode) query.append('province_kode', provinceKode);
+  if (q) query.append('q', q);
+  const qs = query.toString() ? `?${query.toString()}` : '';
+  return request(`${API_BASE}/kst/wilayah/regencies${qs}`);
+}
+

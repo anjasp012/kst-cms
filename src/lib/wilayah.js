@@ -4,7 +4,7 @@
  * langsung dari database internal PostgreSQL (kst_db) tanpa ketergantungan API pihak ketiga.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8002/api/v1'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'
 
 // Cache in-memory agar pergantian pilihan instan tanpa re-fetch
 let provincesCache = null
