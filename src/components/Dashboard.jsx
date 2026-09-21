@@ -16,6 +16,7 @@ import {
   deleteRegionalPartner,
   fetchKSTCategories,
   fetchDampak,
+  fetchCollaborations,
 } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { Toaster, toast } from 'sonner'
@@ -45,7 +46,8 @@ export default function Dashboard({ username, onLogout }) {
     if (path === 'kst/new' || path.startsWith('kst/edit')) return 'kst-form'
     if (path === 'tema-riset') return 'tema-riset'
     if (path === 'tipe-fasilitas' || path === 'fasilitas') return 'tipe-fasilitas'
-    if (path === 'dampak' || path === 'potensi-kolaborasi') return 'dampak'
+    if (path === 'dampak') return 'dampak'
+    if (path === 'kolaborasi' || path === 'potensi-kolaborasi') return 'kolaborasi'
     return 'kst'
   }, [location.pathname])
 
@@ -61,6 +63,7 @@ export default function Dashboard({ username, onLogout }) {
     potensi_kolaborasi: [],
   })
   const [dampakCount, setDampakCount] = useState(5)
+  const [collabCount, setCollabCount] = useState(4)
 
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -70,12 +73,13 @@ export default function Dashboard({ username, onLogout }) {
 
   const viewTitles = {
     kst: 'Kawasan Sains dan Teknologi (KST) BRIN',
-    'kst-form': 'Form Kawasan Sains dan Teknologi (6 Tab)',
+    'kst-form': 'Form Kawasan Sains dan Teknologi',
     partners: 'Direktori Mitra Riset Daerah (BRIDA / BAPPERIDA / BAPPEDA)',
     'tema-riset': 'Master Data — Tema Riset',
     'tipe-fasilitas': 'Master Data — Fasilitas',
     dampak: 'Master Data — Dampak',
-    'potensi-kolaborasi': 'Master Data — Dampak',
+    kolaborasi: 'Master Data — Kolaborasi',
+    'potensi-kolaborasi': 'Master Data — Kolaborasi',
   }
 
   const loadData = useCallback(async (isManualRefresh = false) => {
@@ -85,7 +89,7 @@ export default function Dashboard({ username, onLogout }) {
     if (isManualRefresh) setLoading(true)
 
     try {
-      const [kstRes, partnersRes, catRes, provRes, dampakRes] = await Promise.all([
+      const [kstRes, partnersRes, catRes, dampakRes, collabRes] = await Promise.all([
         fetchKSTLocations().catch(() => []),
         fetchRegionalPartners().catch(() => []),
         fetchKSTCategories(true).catch(() => ({
@@ -94,6 +98,7 @@ export default function Dashboard({ username, onLogout }) {
           potensi_kolaborasi: [],
         })),
         fetchDampak().catch(() => []),
+        fetchCollaborations().catch(() => []),
       ])
 
       if (Array.isArray(kstRes)) setKstLocations(kstRes)
@@ -106,6 +111,7 @@ export default function Dashboard({ username, onLogout }) {
         })
       }
       if (Array.isArray(dampakRes)) setDampakCount(dampakRes.length)
+      if (Array.isArray(collabRes)) setCollabCount(collabRes.length)
 
       if (isManualRefresh) {
         toast.success('Data berhasil diperbarui')
@@ -194,6 +200,12 @@ export default function Dashboard({ username, onLogout }) {
           label: 'Dampak',
           icon: Award,
           count: dampakCount,
+        },
+        {
+          id: 'kolaborasi',
+          label: 'Kolaborasi',
+          icon: Handshake,
+          count: collabCount,
         },
       ],
     },
@@ -400,9 +412,17 @@ export default function Dashboard({ username, onLogout }) {
           )}
 
           {/* 6. Master Data: Dampak */}
-          {(currentView === 'dampak' || currentView === 'potensi-kolaborasi') && (
+          {currentView === 'dampak' && (
             <CategoryManagementView
               activeType="dampak"
+              onCategoriesChanged={() => loadData()}
+            />
+          )}
+
+          {/* 7. Master Data: Kolaborasi */}
+          {currentView === 'kolaborasi' && (
+            <CategoryManagementView
+              activeType="potensi_kolaborasi"
               onCategoriesChanged={() => loadData()}
             />
           )}

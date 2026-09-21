@@ -70,13 +70,13 @@ const TYPE_CONFIG = {
     placeholder: 'Contoh: Penguatan Iptek & Inovasi Daerah',
   },
   potensi_kolaborasi: {
-    label: 'Dampak',
-    singular: 'Dampak',
-    description: 'Pilar dampak strategis kawasan KST terhadap ilmu pengetahuan, daya saing industri, dan kesejahteraan masyarakat.',
-    icon: Award,
-    color: 'amber',
-    badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-    placeholder: 'Contoh: Penguatan Iptek & Inovasi Daerah',
+    label: 'Kolaborasi',
+    singular: 'Kolaborasi',
+    description: 'Sektor dan ekosistem mitra kerja sama strategis kawasan KST (contoh: Industri, Akademisi, Pemerintah, Komunitas).',
+    icon: Handshake,
+    color: 'purple',
+    badgeClass: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+    placeholder: 'Contoh: Lembaga Riset Internasional',
   },
 }
 

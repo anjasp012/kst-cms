@@ -681,7 +681,8 @@ export default function KSTFormPage({ onSaveSuccess }) {
     { id: 'profil', label: 'Profil Kawasan', icon: Building2 },
     { id: 'fasilitas', label: 'Fasilitas Riset', icon: FlaskConical, badge: formData.fasilitas.length },
     { id: 'riset', label: 'Bidang Riset', icon: Sparkles, badge: formData.riset.length },
-    { id: 'dampak', label: 'Dampak & Kolaborasi', icon: Award, badge: formData.dampak.length },
+    { id: 'dampak', label: 'Dampak', icon: Award, badge: formData.dampak.length },
+    { id: 'kolaborasi', label: 'Kolaborasi', icon: Users, badge: formData.daftar_kolaborasi.length },
     { id: 'galeri', label: 'Galeri Foto', icon: ImageIcon, badge: formData.galeri.length },
   ]
 
@@ -1509,7 +1510,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
         </Card>
       )}
 
-      {/* TAB 5: DAMPAK & KOLABORASI */}
+      {/* TAB 5: DAMPAK */}
       {activeTab === 'dampak' && (
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
@@ -1727,9 +1728,19 @@ export default function KSTFormPage({ onSaveSuccess }) {
               </div>
             </div>
           </div>
+        </Card>
+      )}
+
+      {/* TAB 6: KOLABORASI */}
+      {activeTab === 'kolaborasi' && (
+        <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
+          <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Potensi & Kemitraan Kolaborasi</h3>
+            <p className="text-xs text-zinc-500">Pilih sektor mitra kerja sama strategis dan kelola daftar mitra kolaborasi terhubung kawasan.</p>
+          </div>
 
           {/* Potensi Kolaborasi */}
-          <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold">Potensi Kolaborasi</Label>
               <span className="text-[11px] text-zinc-400 font-mono">
@@ -1868,7 +1879,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
         </Card>
       )}
 
-      {/* TAB 6: GALERI FOTO */}
+      {/* TAB 7: GALERI FOTO */}
       {activeTab === 'galeri' && (
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
