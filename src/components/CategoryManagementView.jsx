@@ -242,44 +242,7 @@ export default function CategoryManagementView({
 
   return (
     <div className="space-y-6">
-      {/* Tab Switcher Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 dark:border-zinc-800 pb-4">
-        <div className="flex items-center gap-1.5 p-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg">
-          {Object.entries(TYPE_CONFIG).map(([key, cfg]) => {
-            const TabIcon = cfg.icon
-            const isActive = activeType === key
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onTypeChange && onTypeChange(key)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  isActive
-                    ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400'}`} />
-                <span>{cfg.label}</span>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                  {key === activeType ? items.length : '•'}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-
-        <Button
-          onClick={handleOpenAdd}
-          size="sm"
-          className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-sm"
-        >
-          <Plus className="w-3.5 h-3.5 mr-1.5" />
-          Tambah {config.singular}
-        </Button>
-      </div>
-
-      {/* Description & Search Bar Header */}
+      {/* Description & Search / Action Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-zinc-900/60 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -298,14 +261,25 @@ export default function CategoryManagementView({
           </p>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-          <Input
-            placeholder={`Cari ${config.singular.toLowerCase()}...`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-xs bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
-          />
+        <div className="flex items-center gap-2.5">
+          <div className="relative w-full sm:w-64">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <Input
+              placeholder={`Cari ${config.singular.toLowerCase()}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-8 h-9 text-xs bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+            />
+          </div>
+
+          <Button
+            onClick={handleOpenAdd}
+            size="sm"
+            className="h-9 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-sm whitespace-nowrap flex-shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Tambah {config.singular}
+          </Button>
         </div>
       </div>
 
