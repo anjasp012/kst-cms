@@ -616,37 +616,20 @@ export default function KSTFormPage({ onSaveSuccess }) {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-zinc-500">Kota / Kabupaten & Provinsi (Manual)</Label>
-                    <Input
-                      value={formData.kota_provinsi}
-                      onChange={(e) => setFormData({ ...formData, kota_provinsi: e.target.value })}
-                      placeholder="Bandung, Jawa Barat"
-                      className="h-8 text-xs bg-white dark:bg-zinc-900"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-zinc-500">Wilayah Kepulauan</Label>
-                    <select
-                      value={formData.wilayah}
-                      onChange={(e) => setFormData({ ...formData, wilayah: e.target.value })}
-                      className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
-                    >
-                      <option value="Sumatera">Sumatera</option>
-                      <option value="Jawa">Jawa</option>
-                      <option value="Kalimantan">Kalimantan</option>
-                      <option value="Sulawesi">Sulawesi</option>
-                      <option value="Nusa Tenggara">Nusa Tenggara</option>
-                      <option value="Maluku & Papua">Maluku & Papua</option>
-                    </select>
-                  </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-zinc-500">Kota / Kabupaten & Provinsi (Input Manual)</Label>
+                  <Input
+                    value={formData.kota_provinsi}
+                    onChange={(e) => setFormData({ ...formData, kota_provinsi: e.target.value })}
+                    placeholder="Contoh: Bandung, Jawa Barat"
+                    className="h-8 text-xs bg-white dark:bg-zinc-900"
+                  />
                 </div>
               )}
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs">Wilayah Utama BRIN (Auto-mapped / Pilihan)</Label>
+              <Label className="text-xs">Wilayah Utama BRIN</Label>
               <select
                 value={formData.wilayah}
                 onChange={(e) => setFormData({ ...formData, wilayah: e.target.value })}
