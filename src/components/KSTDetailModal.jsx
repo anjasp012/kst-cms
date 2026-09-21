@@ -221,7 +221,7 @@ export default function KSTDetailModal({ kst, open, onClose }) {
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
                           <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
-                          <span>{r.judul || r}</span>
+                          <span>{typeof r === 'string' ? r.replace(/^\d+[\.\)]\s*/, '') : (r.judul || '').replace(/^\d+[\.\)]\s*/, '')}</span>
                         </span>
                         {r.bidang && (
                           <span className="px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-500 bg-zinc-100 dark:bg-zinc-800">

@@ -428,12 +428,12 @@ export default function KSTFormPage({ onSaveSuccess }) {
   }
 
   const tabsConfig = [
-    { id: 'spasial', label: '1. Spasial & Info Kawasan', icon: Compass },
-    { id: 'profil', label: '2. Profil & Fokus', icon: Building2 },
-    { id: 'fasilitas', label: '3. Fasilitas Riset', icon: FlaskConical, badge: formData.fasilitas.length },
-    { id: 'riset', label: '4. Bidang Riset', icon: Sparkles, badge: formData.riset.length },
-    { id: 'dampak', label: '5. Dampak & Kolaborasi', icon: Award, badge: formData.dampak.length },
-    { id: 'galeri', label: '6. Galeri Foto', icon: ImageIcon, badge: formData.galeri.length },
+    { id: 'spasial', label: 'Spasial & Wilayah', icon: Compass },
+    { id: 'profil', label: 'Profil Kawasan', icon: Building2 },
+    { id: 'fasilitas', label: 'Fasilitas Riset', icon: FlaskConical, badge: formData.fasilitas.length },
+    { id: 'riset', label: 'Bidang Riset', icon: Sparkles, badge: formData.riset.length },
+    { id: 'dampak', label: 'Dampak & Kolaborasi', icon: Award, badge: formData.dampak.length },
+    { id: 'galeri', label: 'Galeri Foto', icon: ImageIcon, badge: formData.galeri.length },
   ]
 
   if (loadingInitial) {
@@ -512,7 +512,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
       {activeTab === 'spasial' && (
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
           <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">1. Identitas, Wilayah Administratif & Titik Koordinat</h3>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Identitas, Wilayah Administratif & Titik Koordinat</h3>
             <p className="text-xs text-zinc-500">Pilih wilayah resmi Indonesia (API Kemendagri) atau isi manual, lalu tentukan koordinat PostGIS.</p>
           </div>
 
@@ -763,7 +763,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
       {activeTab === 'profil' && (
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">2. Tab Profil (Wonderful BRIN)</h3>
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Profil Kawasan (Wonderful BRIN)</h3>
             <p className="text-xs text-zinc-500">Isi narasi profil, peran kawasan, tema fokus utama, serta mitra yang terhubung.</p>
           </div>
 
@@ -825,7 +825,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">3. Fasilitas Unggulan Kawasan</h3>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Fasilitas Unggulan Kawasan</h3>
               <p className="text-xs text-zinc-500">Tambahkan fasilitas unggulan kawasan (Laboratorium, Pilot Plant, Observatorium, dll.).</p>
             </div>
             <Button
@@ -922,7 +922,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">4. Bidang Riset & Inovasi</h3>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Bidang Riset & Inovasi</h3>
               <p className="text-xs text-zinc-500">Gunakan tombol <strong>+ Tambah Bidang Riset</strong> untuk menambah kartu riset sesuai kebutuhan.</p>
             </div>
             <Button
@@ -1038,7 +1038,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">5. Dampak Strategis & Data Highlight</h3>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Dampak Strategis & Data Highlight</h3>
               <p className="text-xs text-zinc-500">Gunakan tombol <strong>+ Tambah Pilar Dampak</strong> untuk menambahkan pilar dampak kawasan.</p>
             </div>
             <Button
@@ -1228,7 +1228,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">6. Galeri Dokumentasi & Foto Riset</h3>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Galeri Dokumentasi & Foto Riset</h3>
               <p className="text-xs text-zinc-500">Unggah kumpulan foto kegiatan riset, gedung laboratorium, dan fasilitas kawasan.</p>
             </div>
             <div className="relative">
