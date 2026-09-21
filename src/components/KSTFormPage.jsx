@@ -815,12 +815,12 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">Tema Riset / Fokus Utama (Kategori Master)</Label>
+                <Label className="text-xs font-semibold">Tema Riset</Label>
                 <span className="text-[11px] text-zinc-400 font-mono">
                   {(formData.fokus_utama || []).length} terpilih
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-500">Klik pill untuk memilih atau membatalkan tema riset yang menjadi fokus utama kawasan ini:</p>
+              <p className="text-[11px] text-zinc-500">Pilih tema riset yang menjadi fokus utama kawasan ini:</p>
               <div className="flex flex-wrap gap-2 pt-1">
                 {categories.tema_riset.map((tema) => {
                   const isSelected = (formData.fokus_utama || []).includes(tema)
@@ -922,7 +922,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[11px]">Tipe Fasilitas (Kategori Master)</Label>
+                    <Label className="text-[11px]">Tipe Fasilitas</Label>
                     <select
                       value={f.tipe}
                       onChange={(e) => updateFacility(idx, 'tipe', e.target.value)}
@@ -1017,7 +1017,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[11px]">Tema Riset (Kategori Master)</Label>
+                      <Label className="text-[11px]">Tema Riset</Label>
                       <select
                         value={r.bidang}
                         onChange={(e) => updateResearch(idx, 'bidang', e.target.value)}
@@ -1198,10 +1198,10 @@ export default function KSTFormPage({ onSaveSuccess }) {
             </div>
           </div>
 
-          {/* Potensi Kolaborasi Kawasan (Kategori Master) */}
+          {/* Potensi Kolaborasi */}
           <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold">Potensi Kolaborasi Kawasan (Kategori Master)</Label>
+              <Label className="text-xs font-semibold">Potensi Kolaborasi</Label>
               <span className="text-[11px] text-zinc-400 font-mono">
                 {(formData.potensi_kolaborasi || []).length} terpilih
               </span>
