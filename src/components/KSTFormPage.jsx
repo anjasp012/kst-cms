@@ -449,26 +449,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
     <form onSubmit={handleSubmit} className="space-y-6 pb-20 animate-fade-in">
       {/* Top Sticky Header */}
       <div className="sticky top-14 z-10 bg-zinc-50/90 dark:bg-[#09090b]/90 backdrop-blur-md py-3 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => navigate('/kst')}
-            className="h-8 text-xs gap-1.5 font-mono"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Kembali</span>
-          </Button>
-
-          <div>
-            <div className="text-xs text-zinc-400 font-mono leading-none">
-              {isEdit ? 'Ubah Data Kawasan' : 'Buat Kawasan Baru'}
-            </div>
-            <h1 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
-              {formData.nama ? formData.nama : (isEdit ? 'Edit KST' : 'Tambah Kawasan Sains (KST)')}
-            </h1>
+        <div>
+          <div className="text-xs text-zinc-400 font-mono leading-none">
+            {isEdit ? 'Ubah Data Kawasan' : 'Buat Kawasan Baru'}
           </div>
+          <h1 className="text-base font-bold text-zinc-900 dark:text-zinc-100 tracking-tight leading-tight">
+            {formData.nama ? formData.nama : (isEdit ? 'Edit KST' : 'Tambah Kawasan Sains (KST)')}
+          </h1>
         </div>
 
         <div className="flex items-center gap-2">
