@@ -1,0 +1,36 @@
+import * as React from 'react'
+import { cn } from '@/lib/utils'
+
+const Card = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      'rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm transition-colors',
+      className
+    )}
+    {...props}
+  />
+))
+Card.displayName = 'Card'
+
+const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn('flex flex-col space-y-1 p-5', className)} {...props} />
+))
+CardHeader.displayName = 'CardHeader'
+
+const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
+  <h3 ref={ref} className={cn('text-sm font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight', className)} {...props} />
+))
+CardTitle.displayName = 'CardTitle'
+
+const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
+  <p ref={ref} className={cn('text-xs text-zinc-500 dark:text-zinc-400', className)} {...props} />
+))
+CardDescription.displayName = 'CardDescription'
+
+const CardContent = React.forwardRef(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn('p-5 pt-0', className)} {...props} />
+))
+CardContent.displayName = 'CardContent'
+
+export { Card, CardHeader, CardTitle, CardDescription, CardContent }
