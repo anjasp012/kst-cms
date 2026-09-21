@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import {
   AlertDialog,
@@ -32,8 +31,6 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  Hash,
-  Sparkles,
 } from 'lucide-react'
 import {
   fetchCategoriesList,
@@ -84,7 +81,6 @@ function slugify(text) {
 
 export default function CategoryManagementView({
   activeType = 'tema_riset',
-  onTypeChange,
   onCategoriesChanged,
 }) {
   const [items, setItems] = useState([])
@@ -98,7 +94,7 @@ export default function CategoryManagementView({
   const [formData, setFormData] = useState({
     nama: '',
     slug: '',
-    urutan: 0,
+    deskripsi: '',
     is_active: true,
   })
 
@@ -148,7 +144,7 @@ export default function CategoryManagementView({
     setFormData({
       nama: '',
       slug: '',
-      urutan: items.length + 1,
+      deskripsi: '',
       is_active: true,
     })
     setFormOpen(true)
@@ -159,7 +155,7 @@ export default function CategoryManagementView({
     setFormData({
       nama: item.nama || '',
       slug: item.slug || '',
-      urutan: item.urutan ?? 0,
+      deskripsi: item.deskripsi || '',
       is_active: Boolean(item.is_active),
     })
     setFormOpen(true)
@@ -187,7 +183,7 @@ export default function CategoryManagementView({
         tipe: activeType,
         nama: formData.nama.trim(),
         slug: formData.slug.trim() || slugify(formData.nama),
-        urutan: Number(formData.urutan) || 0,
+        deskripsi: formData.deskripsi?.trim() || null,
         is_active: Boolean(formData.is_active),
       }
 
@@ -310,7 +306,6 @@ export default function CategoryManagementView({
                   <th className="py-3 px-4 w-12 text-center">NO</th>
                   <th className="py-3 px-4">NAMA</th>
                   <th className="py-3 px-4 font-mono">SLUG IDENTIFIER</th>
-                  <th className="py-3 px-4 text-center font-mono w-24">URUTAN</th>
                   <th className="py-3 px-4 text-center w-28">STATUS</th>
                   <th className="py-3 px-4 text-right w-28">AKSI</th>
                 </tr>
@@ -333,23 +328,20 @@ export default function CategoryManagementView({
                     <td className="py-3 px-4 text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
                       {item.slug}
                     </td>
-                    <td className="py-3 px-4 text-center text-zinc-500 dark:text-zinc-400 font-mono">
-                      {item.urutan ?? 0}
-                    </td>
                     <td className="py-3 px-4 text-center">
                       <button
                         type="button"
                         onClick={() => handleToggleActive(item)}
                         title="Klik untuk mengubah status"
-                        className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer border"
+                        className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer"
                       >
                         {item.is_active ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
                             <CheckCircle2 className="w-3 h-3" />
                             Aktif
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 rounded-full">
+                          <span className="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 rounded-full">
                             <XCircle className="w-3 h-3" />
                             Nonaktif
                           </span>
@@ -388,79 +380,80 @@ export default function CategoryManagementView({
 
       {/* Add / Edit Dialog Modal */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <Icon className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
-              <span>{editingItem ? `Ubah ${config.singular}` : `Tambah ${config.singular} Baru`}</span>
-            </DialogTitle>
-          </DialogHeader>
-
-          <form onSubmit={handleSave} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                Nama {config.singular} <span className="text-rose-500">*</span>
-              </Label>
-              <Input
-                required
-                value={formData.nama}
-                onChange={handleNameChange}
-                placeholder={config.placeholder}
-                className="text-xs bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-              />
+        <DialogContent className="max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl p-0 overflow-hidden">
+          {/* Header */}
+          <div className="p-5 pb-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-zinc-100 dark:text-zinc-900 shadow-sm flex-shrink-0">
+                <Icon className="w-4 h-4" />
+              </div>
+              <div>
+                <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {editingItem ? `Edit ${config.singular}` : `Tambah ${config.singular} Baru`}
+                </DialogTitle>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  {config.description}
+                </p>
+              </div>
             </div>
+          </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                Slug (URL Identifier)
-              </Label>
-              <Input
-                value={formData.slug}
-                onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
-                placeholder="slug-otomatis"
-                className="text-xs font-mono bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-              />
-              <p className="text-[10px] text-zinc-400">
-                Dibuat otomatis dari nama jika dikosongkan.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={handleSave}>
+            <div className="p-5 space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Urutan Tampilan
+                  Nama {config.singular} <span className="text-rose-500">*</span>
                 </Label>
                 <Input
-                  type="number"
-                  min="0"
-                  value={formData.urutan}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, urutan: e.target.value }))}
-                  className="text-xs font-mono bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                  required
+                  autoFocus
+                  value={formData.nama}
+                  onChange={handleNameChange}
+                  placeholder={config.placeholder}
+                  className="h-9 text-xs bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
                 />
               </div>
 
-              <div className="space-y-1.5 flex flex-col justify-end pb-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Slug Identifier <span className="text-zinc-400 font-normal font-mono text-[10px]">(Otomatis)</span>
+                </Label>
+                <Input
+                  value={formData.slug}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                  placeholder="slug-otomatis"
+                  className="h-9 text-xs font-mono bg-zinc-50/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                    Status Aktif
+                  </div>
+                  <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    Tampilkan sebagai opsi pilihan di formulir KST
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
                     checked={formData.is_active}
                     onChange={(e) => setFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
-                    className="rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 focus:ring-zinc-900 h-4 w-4"
+                    className="sr-only peer"
                   />
-                  <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
-                    Aktifkan di Pilihan Form
-                  </span>
+                  <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                 </label>
               </div>
             </div>
 
-            <DialogFooter className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="p-4 px-5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-end gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setFormOpen(false)}
-                className="text-xs"
+                className="text-xs h-9 border-zinc-200 dark:border-zinc-800"
               >
                 Batal
               </Button>
@@ -468,7 +461,7 @@ export default function CategoryManagementView({
                 type="submit"
                 size="sm"
                 disabled={saving}
-                className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium"
+                className="h-9 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-sm px-4"
               >
                 {saving ? (
                   <>
@@ -479,7 +472,7 @@ export default function CategoryManagementView({
                   'Simpan Perubahan'
                 )}
               </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
@@ -511,4 +504,3 @@ export default function CategoryManagementView({
     </div>
   )
 }
-
