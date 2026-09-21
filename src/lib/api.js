@@ -1,10 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8002/api/v1';
 
-function getJwt() {
+export function getJwt() {
   return localStorage.getItem('kst_jwt');
 }
 
-function getRefreshToken() {
+export function getRefreshToken() {
   return localStorage.getItem('kst_refresh');
 }
 
@@ -108,137 +108,12 @@ export async function login(username, password) {
   return res.json();
 }
 
-// 📊 1. HISTORI PEMAKAIAN MODUL
-export async function fetchModuleUsage() {
-  return request(`${API_BASE}/admin/module-usage`);
-}
-
-export async function fetchAnalytics() {
+// 📊 1. ANALITIK & STATISTIK KST
+export async function fetchKSTAnalytics() {
   return request(`${API_BASE}/admin/analytics`);
 }
 
-
-
-// 📬 2. MODERASI USULAN RISET PENGUNJUNG
-export async function fetchSuggestions({ status = null, limit = 50, offset = 0 } = {}) {
-  let url = `${API_BASE}/admin/suggestions?limit=${limit}&offset=${offset}`;
-  if (status && status !== 'ALL') {
-    url += `&status=${status}`;
-  }
-  return request(url);
-}
-
-export async function updateSuggestionStatus(id, status, admin_notes = null) {
-  return request(`${API_BASE}/admin/suggestions/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status, admin_notes }),
-  });
-}
-
-export async function bulkUpdateSuggestionStatus(ids, status) {
-  return request(`${API_BASE}/admin/suggestions/bulk-status`, {
-    method: 'POST',
-    body: JSON.stringify({ ids, status }),
-  });
-}
-
-export async function deleteSuggestion(id) {
-  return request(`${API_BASE}/admin/suggestions/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function bulkDeleteSuggestions(ids) {
-  return request(`${API_BASE}/admin/suggestions/bulk-delete`, {
-    method: 'POST',
-    body: JSON.stringify({ ids }),
-  });
-}
-
-// 👥 3. CRUD MODUL PENGGUNA (PERSONA) & TOKEN TANTANGAN (ZONA)
-export async function fetchPersonas() {
-  return request(`${API_BASE}/admin/personas`);
-}
-
-export async function createPersona(payload) {
-  return request(`${API_BASE}/admin/personas`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function updatePersona(id, payload) {
-  return request(`${API_BASE}/admin/personas/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function deletePersona(id) {
-  return request(`${API_BASE}/admin/personas/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function fetchZones() {
-  return request(`${API_BASE}/admin/zones`);
-}
-
-export async function createZone(payload) {
-  return request(`${API_BASE}/admin/zones`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function updateZone(id, payload) {
-  return request(`${API_BASE}/admin/zones/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function deleteZone(id) {
-  return request(`${API_BASE}/admin/zones/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-// 💡 4. KATALOG INOVASI
-export async function fetchInnovations(zone_id = null) {
-  let url = `${API_BASE}/admin/innovations`;
-  if (zone_id) url += `?zone_id=${zone_id}`;
-  return request(url);
-}
-
-export async function createInnovation(payload) {
-  return request(`${API_BASE}/admin/innovations`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function updateInnovation(id, payload) {
-  return request(`${API_BASE}/admin/innovations/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function deleteInnovation(id) {
-  return request(`${API_BASE}/admin/innovations/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-export async function updateInnovationRelevance(id, mappings) {
-  return request(`${API_BASE}/admin/innovations/${id}/relevance`, {
-    method: 'POST',
-    body: JSON.stringify(mappings),
-  });
-}
-
-// 📁 5. FILE UPLOAD
+// 📁 2. FILE UPLOAD (Gambar / Thumbnail / Galeri)
 export async function uploadFile(file) {
   const formData = new FormData();
   formData.append('file', file);
@@ -265,7 +140,7 @@ export async function uploadFile(file) {
   return res.json();
 }
 
-// 🗺️ 6. KAWASAN SAINS DAN TEKNOLOGI (KST)
+// 🗺️ 3. KAWASAN SAINS DAN TEKNOLOGI (KST)
 export async function fetchKSTLocations(params = {}) {
   const query = new URLSearchParams();
   if (params.wilayah) query.append('wilayah', params.wilayah);
@@ -301,7 +176,7 @@ export async function deleteKST(id) {
   });
 }
 
-// 🏛️ 7. MITRA RISET DAERAH (BAPPEDA / BAPPERIDA / BRIDA)
+// 🏛️ 4. MITRA RISET DAERAH (BAPPEDA / BAPPERIDA / BRIDA)
 export async function fetchRegionalPartners(params = {}) {
   const query = new URLSearchParams();
   if (params.jenis) query.append('jenis', params.jenis);
@@ -330,4 +205,3 @@ export async function deleteRegionalPartner(id) {
     method: 'DELETE',
   });
 }
-
