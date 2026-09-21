@@ -27,6 +27,7 @@ import {
 import { uploadFile } from '@/lib/api'
 import { getImageUrl } from '@/lib/utils'
 import { toast } from 'sonner'
+import CoordinatePicker from '@/components/ui/CoordinatePicker'
 
 export default function KSTFormModal({ open, kst, onSave, onClose }) {
   const [loading, setLoading] = useState(false)
@@ -313,36 +314,19 @@ export default function KSTFormModal({ open, kst, onSave, onClose }) {
                   </div>
                 </div>
 
-                {/* KOORDINAT POSTGIS */}
-                <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                    <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>Koordinat GPS (PostGIS)</span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-[11px] font-mono text-zinc-500">Latitude (Garis Lintang)</Label>
-                      <Input
-                        type="number"
-                        step="any"
-                        value={formData.latitude}
-                        onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                        placeholder="Contoh: -6.917464"
-                        className="h-8 text-xs font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[11px] font-mono text-zinc-500">Longitude (Garis Bujur)</Label>
-                      <Input
-                        type="number"
-                        step="any"
-                        value={formData.longitude}
-                        onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                        placeholder="Contoh: 107.619122"
-                        className="h-8 text-xs font-mono"
-                      />
-                    </div>
-                  </div>
+                {/* KOORDINAT INTERAKTIF POSTGIS */}
+                <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800">
+                  <CoordinatePicker
+                    latitude={formData.latitude}
+                    longitude={formData.longitude}
+                    onChange={(lat, lng) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        latitude: lat,
+                        longitude: lng
+                      }))
+                    }}
+                  />
                 </div>
 
                 {/* THUMBNAIL UPLOAD */}

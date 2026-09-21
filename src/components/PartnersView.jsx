@@ -33,6 +33,7 @@ import {
   ExternalLink 
 } from 'lucide-react'
 import { toast } from 'sonner'
+import CoordinatePicker from '@/components/ui/CoordinatePicker'
 
 export default function PartnersView({
   partners,
@@ -297,7 +298,7 @@ export default function PartnersView({
 
       {/* Modal Form Tambah / Edit Mitra */}
       <Dialog open={formOpen} onOpenChange={(val) => !val && setFormOpen(false)}>
-        <DialogContent className="max-w-md p-5 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl shadow-lg">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-5 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-xl shadow-lg">
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <DialogHeader>
               <DialogTitle className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
@@ -384,29 +385,19 @@ export default function PartnersView({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="space-y-1">
-                  <Label className="text-xs font-mono text-zinc-500">Latitude</Label>
-                  <Input
-                    type="number"
-                    step="any"
-                    value={formData.latitude}
-                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                    placeholder="3.5434"
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-mono text-zinc-500">Longitude</Label>
-                  <Input
-                    type="number"
-                    step="any"
-                    value={formData.longitude}
-                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                    placeholder="98.6737"
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
+              {/* KOORDINAT INTERAKTIF POSTGIS */}
+              <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800">
+                <CoordinatePicker
+                  latitude={formData.latitude}
+                  longitude={formData.longitude}
+                  onChange={(lat, lng) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      latitude: lat,
+                      longitude: lng
+                    }))
+                  }}
+                />
               </div>
             </div>
 
