@@ -78,19 +78,6 @@ async function request(url, options = {}) {
   return res.json();
 }
 
-export async function checkApiHealth() {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8000';
-    const res = await fetch(`${backendUrl}/`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    return res.ok;
-  } catch (err) {
-    return false;
-  }
-}
-
 export async function login(username, password) {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
