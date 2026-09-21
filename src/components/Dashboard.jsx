@@ -84,7 +84,7 @@ export default function Dashboard({ username, onLogout }) {
       setLoading(false)
       isFetchingRef.current = false
     }
-  }, [verifyHealth])
+  }, [])
 
   useEffect(() => {
     loadData()
