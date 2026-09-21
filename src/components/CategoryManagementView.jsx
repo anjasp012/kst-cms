@@ -24,6 +24,7 @@ import {
   FlaskConical,
   Cpu,
   Handshake,
+  Award,
   Plus,
   Search,
   Edit,
@@ -59,14 +60,23 @@ const TYPE_CONFIG = {
     badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
     placeholder: 'Contoh: Cleanroom & Fabrikasi Mikro',
   },
-  potensi_kolaborasi: {
-    label: 'Dampak & Kolaborasi',
-    singular: 'Dampak & Kolaborasi',
-    description: 'Sektor dan pilar potensi kolaborasi strategis serta dampak kawasan KST (Industri, Akademisi, Pemerintah, Komunitas).',
-    icon: Handshake,
+  dampak: {
+    label: 'Dampak',
+    singular: 'Dampak',
+    description: 'Pilar dampak strategis kawasan KST terhadap ilmu pengetahuan, daya saing industri, dan kesejahteraan masyarakat.',
+    icon: Award,
     color: 'amber',
     badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-    placeholder: 'Contoh: Startup & Inkubator Bisnis',
+    placeholder: 'Contoh: Penguatan Iptek & Inovasi Daerah',
+  },
+  potensi_kolaborasi: {
+    label: 'Dampak',
+    singular: 'Dampak',
+    description: 'Pilar dampak strategis kawasan KST terhadap ilmu pengetahuan, daya saing industri, dan kesejahteraan masyarakat.',
+    icon: Award,
+    color: 'amber',
+    badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    placeholder: 'Contoh: Penguatan Iptek & Inovasi Daerah',
   },
 }
 

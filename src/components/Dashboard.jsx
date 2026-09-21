@@ -17,6 +17,7 @@ import {
   deleteRegionalPartner,
   fetchKSTCategories,
   fetchProvinces,
+  fetchDampak,
 } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { Toaster, toast } from 'sonner'
@@ -32,6 +33,7 @@ import {
   FlaskConical,
   Cpu,
   Handshake,
+  Award,
   Globe2,
 } from 'lucide-react'
 
@@ -45,8 +47,8 @@ export default function Dashboard({ username, onLogout }) {
     if (path === 'partners') return 'partners'
     if (path === 'kst/new' || path.startsWith('kst/edit')) return 'kst-form'
     if (path === 'tema-riset') return 'tema-riset'
-    if (path === 'tipe-fasilitas') return 'tipe-fasilitas'
-    if (path === 'potensi-kolaborasi') return 'potensi-kolaborasi'
+    if (path === 'tipe-fasilitas' || path === 'fasilitas') return 'tipe-fasilitas'
+    if (path === 'dampak' || path === 'potensi-kolaborasi') return 'dampak'
     if (path === 'wilayah') return 'wilayah'
     return 'kst'
   }, [location.pathname])
@@ -63,6 +65,7 @@ export default function Dashboard({ username, onLogout }) {
     potensi_kolaborasi: [],
   })
   const [provincesCount, setProvincesCount] = useState(38)
+  const [dampakCount, setDampakCount] = useState(5)
 
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -76,7 +79,8 @@ export default function Dashboard({ username, onLogout }) {
     partners: 'Direktori Mitra Riset Daerah (BRIDA / BAPPERIDA / BAPPEDA)',
     'tema-riset': 'Master Data — Tema Riset',
     'tipe-fasilitas': 'Master Data — Fasilitas',
-    'potensi-kolaborasi': 'Master Data — Dampak & Kolaborasi',
+    dampak: 'Master Data — Dampak',
+    'potensi-kolaborasi': 'Master Data — Dampak',
     wilayah: 'Master Data — Wilayah & 38 Provinsi Indonesia',
   }
 
@@ -87,7 +91,7 @@ export default function Dashboard({ username, onLogout }) {
     if (isManualRefresh) setLoading(true)
 
     try {
-      const [kstRes, partnersRes, catRes, provRes] = await Promise.all([
+      const [kstRes, partnersRes, catRes, provRes, dampakRes] = await Promise.all([
         fetchKSTLocations().catch(() => []),
         fetchRegionalPartners().catch(() => []),
         fetchKSTCategories(true).catch(() => ({
@@ -96,6 +100,7 @@ export default function Dashboard({ username, onLogout }) {
           potensi_kolaborasi: [],
         })),
         fetchProvinces().catch(() => []),
+        fetchDampak().catch(() => []),
       ])
 
       if (Array.isArray(kstRes)) setKstLocations(kstRes)
@@ -108,6 +113,7 @@ export default function Dashboard({ username, onLogout }) {
         })
       }
       if (Array.isArray(provRes)) setProvincesCount(provRes.length)
+      if (Array.isArray(dampakRes)) setDampakCount(dampakRes.length)
 
       if (isManualRefresh) {
         toast.success('Data berhasil diperbarui')
@@ -192,10 +198,10 @@ export default function Dashboard({ username, onLogout }) {
           count: categoriesData.tipe_fasilitas?.length,
         },
         {
-          id: 'potensi-kolaborasi',
-          label: 'Dampak & Kolaborasi',
-          icon: Handshake,
-          count: categoriesData.potensi_kolaborasi?.length,
+          id: 'dampak',
+          label: 'Dampak',
+          icon: Award,
+          count: dampakCount,
         },
         {
           id: 'wilayah',
@@ -407,18 +413,10 @@ export default function Dashboard({ username, onLogout }) {
             />
           )}
 
-          {/* 6. Master Data: Potensi Kolaborasi */}
-          {currentView === 'potensi-kolaborasi' && (
+          {/* 6. Master Data: Dampak */}
+          {(currentView === 'dampak' || currentView === 'potensi-kolaborasi') && (
             <CategoryManagementView
-              activeType="potensi_kolaborasi"
-              onTypeChange={(type) => {
-                const map = {
-                  tema_riset: 'tema-riset',
-                  tipe_fasilitas: 'tipe-fasilitas',
-                  potensi_kolaborasi: 'potensi-kolaborasi',
-                }
-                setCurrentView(map[type] || 'potensi-kolaborasi')
-              }}
+              activeType="dampak"
               onCategoriesChanged={() => loadData()}
             />
           )}

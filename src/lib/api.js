@@ -300,27 +300,60 @@ export async function deleteCollaboration(id) {
   });
 }
 
+// 🏆 5D. PILAR DAMPAK (Tabel terpisah: kst_dampak)
+export async function fetchDampak(includeInactive = true) {
+  const qs = includeInactive ? '?include_inactive=true' : '';
+  return request(`${API_BASE}/kst/dampak${qs}`);
+}
+
+export async function createDampak(payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/dampak`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateDampak(id, payload) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/dampak/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteDampak(id) {
+  categoriesCache = null;
+  return request(`${API_BASE}/kst/dampak/${id}`, {
+    method: 'DELETE',
+  });
+}
+
 // Backward-compatible router helper
 export async function fetchCategoriesList(tipe, includeInactive = true) {
   if (tipe === 'tipe_fasilitas') return fetchFacilities(includeInactive);
+  if (tipe === 'dampak') return fetchDampak(includeInactive);
   if (tipe === 'potensi_kolaborasi') return fetchCollaborations(includeInactive);
   return fetchThemes(includeInactive);
 }
 
 export async function createCategory(payload) {
   if (payload.tipe === 'tipe_fasilitas') return createFacility(payload);
+  if (payload.tipe === 'dampak') return createDampak(payload);
   if (payload.tipe === 'potensi_kolaborasi') return createCollaboration(payload);
   return createTheme(payload);
 }
 
 export async function updateCategory(id, payload, tipe) {
   if (tipe === 'tipe_fasilitas') return updateFacility(id, payload);
+  if (tipe === 'dampak') return updateDampak(id, payload);
   if (tipe === 'potensi_kolaborasi') return updateCollaboration(id, payload);
   return updateTheme(id, payload);
 }
 
 export async function deleteCategory(id, tipe) {
   if (tipe === 'tipe_fasilitas') return deleteFacility(id);
+  if (tipe === 'dampak') return deleteDampak(id);
   if (tipe === 'potensi_kolaborasi') return deleteCollaboration(id);
   return deleteTheme(id);
 }
