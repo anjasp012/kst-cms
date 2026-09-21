@@ -120,3 +120,4 @@ export function formatProvinceName(name = '') {
     })
     .join(' ')
 }
+

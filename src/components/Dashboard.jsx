@@ -12,8 +12,7 @@ import {
   fetchRegionalPartners,
   createRegionalPartner,
   updateRegionalPartner,
-  deleteRegionalPartner,
-  checkApiHealth
+  deleteRegionalPartner
 } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { Toaster, toast } from 'sonner'
@@ -23,11 +22,9 @@ import {
   LogOut,
   Sun,
   Moon,
-  ExternalLink,
   ChevronRight,
   Menu,
   X,
-  RefreshCw,
 } from 'lucide-react'
 
 export default function Dashboard({ username, onLogout }) {
@@ -50,7 +47,6 @@ export default function Dashboard({ username, onLogout }) {
   const [partners, setPartners] = useState([])
 
   const [loading, setLoading] = useState(true)
-  const [apiStatus, setApiStatus] = useState('checking')
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const { isDark, toggleTheme } = useTheme()
@@ -62,17 +58,11 @@ export default function Dashboard({ username, onLogout }) {
     partners: 'Direktori Mitra Riset Daerah (BRIDA / BAPPERIDA / BAPPEDA)',
   }
 
-  const verifyHealth = useCallback(async () => {
-    const isHealthy = await checkApiHealth()
-    setApiStatus(isHealthy ? 'online' : 'offline')
-  }, [])
-
   const loadData = useCallback(async (isManualRefresh = false) => {
     if (isFetchingRef.current) return
     isFetchingRef.current = true
 
     if (isManualRefresh) setLoading(true)
-    verifyHealth()
 
     try {
       const [kstRes, partnersRes] = await Promise.all([
@@ -159,14 +149,14 @@ export default function Dashboard({ username, onLogout }) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Left Sidebar Dashboard (RT / DW Exact Format) */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col transition-transform duration-200 ease-in-out ${
+        className={`w-64 fixed inset-y-0 left-0 z-40 border-r border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex flex-col justify-between transition-transform duration-200 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         }`}
       >
-        <div className="flex-1 flex flex-col overflow-y-auto">
-          {/* Logo & Brand */}
+        <div>
+          {/* Logo & Brand Header (Aligned to exact h-14 height with right navbar) */}
           <div className="h-14 px-5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-xs text-zinc-100 dark:text-zinc-900 shadow-sm flex-shrink-0">
@@ -210,7 +200,7 @@ export default function Dashboard({ username, onLogout }) {
                     <span>{item.label}</span>
                   </div>
                   {item.count !== undefined && (
-                    <span className="text-[11px] text-zinc-400 font-mono bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">
+                    <span className="text-[11px] text-zinc-400 font-mono">
                       {item.count}
                     </span>
                   )}
@@ -220,103 +210,63 @@ export default function Dashboard({ username, onLogout }) {
           </nav>
         </div>
 
-        {/* Sidebar Footer (User info & Logout) */}
-        <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
-          <div className="p-2.5 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-6 h-6 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-mono font-bold text-zinc-700 dark:text-zinc-200 shrink-0">
-                {username ? username[0].toUpperCase() : 'A'}
-              </div>
-              <div className="truncate">
-                <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                  {username || 'Administrator'}
-                </div>
-                <div className="text-[10px] text-zinc-400 font-mono flex items-center gap-1">
-                  <span className={`w-1.5 h-1.5 rounded-full ${apiStatus === 'online' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                  <span>{apiStatus === 'online' ? 'Terhubung' : 'Offline'}</span>
-                </div>
-              </div>
+        {/* User Profile & Logout Section (RT / DW Exact Format) */}
+        <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-950">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded bg-zinc-200 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-700 dark:text-zinc-300 flex-shrink-0">
+              {username ? username.charAt(0).toUpperCase() : 'A'}
             </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLogout}
-              className="h-7 w-7 p-0 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
-              title="Keluar"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-            </Button>
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{username}</div>
+              <div className="text-[11px] text-zinc-400 dark:text-zinc-500 font-mono leading-none">ADMINISTRATOR</div>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onLogout}
+            title="Keluar (Logout)"
+            className="h-8 w-8 text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 md:pl-64 flex flex-col">
-        {/* Top Navbar */}
-        <header className="h-14 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-4 sm:px-8 flex items-center justify-between sticky top-0 z-20">
+      <main className="flex-1 md:ml-64 flex flex-col min-h-screen">
+        {/* Top Navbar (RT / DW Exact Format) */}
+        <header className="h-14 px-5 sm:px-8 border-b border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+              className="md:hidden p-1.5 rounded-md border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-zinc-400 hidden sm:inline">KST CMS</span>
-              <ChevronRight className="w-3.5 h-3.5 text-zinc-400 hidden sm:inline" />
-              <span className="font-semibold text-zinc-900 dark:text-zinc-100 truncate">
-                {viewTitles[currentView]}
-              </span>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-zinc-400 dark:text-zinc-500 font-mono text-xs">KST BRIN</span>
+              <ChevronRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-700" />
+              <span className="font-medium text-zinc-800 dark:text-zinc-200 text-sm">{viewTitles[currentView]}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Status Pill */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-mono border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900">
-              <span className={`w-1.5 h-1.5 rounded-full ${apiStatus === 'online' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-              <span className="text-zinc-500">{apiStatus === 'online' ? 'API: 8002' : 'API: Offline'}</span>
-            </div>
-
-            {/* Refresh Button */}
+            {/* Theme Toggle Button */}
             <Button
               variant="outline"
-              size="sm"
-              onClick={() => loadData(true)}
-              disabled={loading}
-              className="h-8 w-8 p-0 text-zinc-500"
-              title="Perbarui Data"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-
-            {/* Swagger Docs Shortcut */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open(`${import.meta.env.VITE_BACKEND_URL || 'http://127.0.0.1:8002'}/docs`, '_blank')}
-              className="h-8 text-xs font-mono gap-1.5 hidden sm:flex text-zinc-600 dark:text-zinc-400"
-            >
-              <span>Swagger</span>
-              <ExternalLink className="w-3 h-3 text-zinc-400" />
-            </Button>
-
-            {/* Theme Toggle */}
-            <Button
-              variant="outline"
-              size="sm"
+              size="icon"
               onClick={toggleTheme}
-              className="h-8 w-8 p-0 text-zinc-600 dark:text-zinc-400"
-              title="Ganti Tema"
+              title={isDark ? 'Ganti ke Tema Terang' : 'Ganti ke Tema Gelap'}
+              className="h-9 w-9 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300"
             >
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-zinc-700" />}
             </Button>
           </div>
         </header>
 
         {/* View Router Render */}
-        <div className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+        <div className="p-5 sm:p-8 space-y-6 flex-1">
           {/* 1. KST Management (Primary) */}
           {currentView === 'kst' && (
             <KSTManagementView
@@ -349,8 +299,8 @@ export default function Dashboard({ username, onLogout }) {
 
         {/* Global Footer */}
         <footer className="px-8 py-4 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-400 dark:text-zinc-600 flex items-center justify-between font-mono">
-          <div>&copy; 2026 BRIN &bull; Kawasan Sains dan Teknologi (PostGIS)</div>
-          <div>SWAGGER: /docs</div>
+          <div>&copy; 2026 BRIN &bull; Kawasan Sains dan Teknologi</div>
+          <div></div>
         </footer>
       </main>
     </div>
