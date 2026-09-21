@@ -5,7 +5,6 @@ import KSTManagementView from './KSTManagementView'
 import KSTFormPage from './KSTFormPage'
 import PartnersView from './PartnersView'
 import CategoryManagementView from './CategoryManagementView'
-import WilayahManagementView from './WilayahManagementView'
 import {
   fetchKSTLocations,
   createKST,
@@ -16,7 +15,6 @@ import {
   updateRegionalPartner,
   deleteRegionalPartner,
   fetchKSTCategories,
-  fetchProvinces,
   fetchDampak,
 } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
@@ -34,7 +32,6 @@ import {
   Cpu,
   Handshake,
   Award,
-  Globe2,
 } from 'lucide-react'
 
 export default function Dashboard({ username, onLogout }) {
@@ -49,7 +46,6 @@ export default function Dashboard({ username, onLogout }) {
     if (path === 'tema-riset') return 'tema-riset'
     if (path === 'tipe-fasilitas' || path === 'fasilitas') return 'tipe-fasilitas'
     if (path === 'dampak' || path === 'potensi-kolaborasi') return 'dampak'
-    if (path === 'wilayah') return 'wilayah'
     return 'kst'
   }, [location.pathname])
 
@@ -64,7 +60,6 @@ export default function Dashboard({ username, onLogout }) {
     tipe_fasilitas: [],
     potensi_kolaborasi: [],
   })
-  const [provincesCount, setProvincesCount] = useState(38)
   const [dampakCount, setDampakCount] = useState(5)
 
   const [loading, setLoading] = useState(true)
@@ -81,7 +76,6 @@ export default function Dashboard({ username, onLogout }) {
     'tipe-fasilitas': 'Master Data — Fasilitas',
     dampak: 'Master Data — Dampak',
     'potensi-kolaborasi': 'Master Data — Dampak',
-    wilayah: 'Master Data — Wilayah & 38 Provinsi Indonesia',
   }
 
   const loadData = useCallback(async (isManualRefresh = false) => {
@@ -99,7 +93,6 @@ export default function Dashboard({ username, onLogout }) {
           tipe_fasilitas: [],
           potensi_kolaborasi: [],
         })),
-        fetchProvinces().catch(() => []),
         fetchDampak().catch(() => []),
       ])
 
@@ -112,7 +105,6 @@ export default function Dashboard({ username, onLogout }) {
           potensi_kolaborasi: catRes.potensi_kolaborasi || [],
         })
       }
-      if (Array.isArray(provRes)) setProvincesCount(provRes.length)
       if (Array.isArray(dampakRes)) setDampakCount(dampakRes.length)
 
       if (isManualRefresh) {
@@ -202,12 +194,6 @@ export default function Dashboard({ username, onLogout }) {
           label: 'Dampak',
           icon: Award,
           count: dampakCount,
-        },
-        {
-          id: 'wilayah',
-          label: 'Wilayah & Provinsi',
-          icon: Globe2,
-          count: provincesCount,
         },
       ],
     },
@@ -418,13 +404,6 @@ export default function Dashboard({ username, onLogout }) {
             <CategoryManagementView
               activeType="dampak"
               onCategoriesChanged={() => loadData()}
-            />
-          )}
-
-          {/* 7. Master Data: Wilayah & Provinsi */}
-          {currentView === 'wilayah' && (
-            <WilayahManagementView
-              onWilayahChanged={() => loadData()}
             />
           )}
         </div>

@@ -14,13 +14,17 @@ export async function fetchProvinces() {
   if (provincesCache) return provincesCache
 
   try {
-    const res = await fetch(`${API_BASE}/kst/wilayah/provinces`)
-    if (!res.ok) throw new Error('Gagal memuat data provinsi dari database')
+    const res = await fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json')
+    if (!res.ok) throw new Error('Gagal memuat data provinsi dari API')
     const data = await res.json()
     provincesCache = data
     return data
   } catch (err) {
-    console.error('Error fetching provinces from database:', err)
+    console.error('Error fetching provinces from API, fallback to local:', err)
+    try {
+      const resLocal = await fetch(`${API_BASE}/kst/wilayah/provinces`)
+      if (resLocal.ok) return await resLocal.json()
+    } catch (_) {}
     return []
   }
 }
@@ -30,13 +34,17 @@ export async function fetchRegencies(provinceId) {
   if (regenciesCache[provinceId]) return regenciesCache[provinceId]
 
   try {
-    const res = await fetch(`${API_BASE}/kst/wilayah/regencies?province_kode=${encodeURIComponent(provinceId)}`)
-    if (!res.ok) throw new Error('Gagal memuat data kota/kabupaten dari database')
+    const res = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provinceId}.json`)
+    if (!res.ok) throw new Error('Gagal memuat data kota/kabupaten dari API')
     const data = await res.json()
     regenciesCache[provinceId] = data
     return data
   } catch (err) {
     console.error(`Error fetching regencies for province ${provinceId}:`, err)
+    try {
+      const resLocal = await fetch(`${API_BASE}/kst/wilayah/regencies?province_kode=${encodeURIComponent(provinceId)}`)
+      if (resLocal.ok) return await resLocal.json()
+    } catch (_) {}
     return []
   }
 }
