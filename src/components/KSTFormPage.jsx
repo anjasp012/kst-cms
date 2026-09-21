@@ -20,12 +20,27 @@ import {
   Layers, 
   Image as ImageIcon,
   CheckCircle2,
+  Check,
   Save,
   Compass,
   Map,
   FileText
 } from 'lucide-react'
-import { uploadFile, fetchKSTDetail, createKST, updateKST, fetchKSTCategories } from '@/lib/api'
+import { 
+  uploadFile, 
+  fetchKSTDetail, 
+  createKST, 
+  updateKST, 
+  fetchKSTCategories,
+  fetchThemes,
+  createTheme,
+  fetchFacilities,
+  createFacility,
+  fetchDampak,
+  createDampak,
+  fetchCollaborations,
+  createCollaboration
+} from '@/lib/api'
 import { getImageUrl } from '@/lib/utils'
 import { 
   fetchProvinces, 
@@ -54,7 +69,26 @@ export default function KSTFormPage({ onSaveSuccess }) {
   const [loadingWilayah, setLoadingWilayah] = useState(false)
   const [manualKotaInput, setManualKotaInput] = useState(false)
 
-  // Master Categories State (Tema Riset, Tipe Fasilitas, Potensi Kolaborasi)
+  // Master Entities State (Objects with id, nama, deskripsi)
+  const [masterThemes, setMasterThemes] = useState([])
+  const [masterFacilities, setMasterFacilities] = useState([])
+  const [masterDampak, setMasterDampak] = useState([])
+  const [masterCollaborations, setMasterCollaborations] = useState([])
+
+  // Inline "Buat Baru" Master State
+  const [creatingMaster, setCreatingMaster] = useState(false)
+  const [showNewThemeInput, setShowNewThemeInput] = useState(false)
+  const [newThemeInput, setNewThemeInput] = useState('')
+  const [showNewFacilityInput, setShowNewFacilityInput] = useState(false)
+  const [newFacilityInput, setNewFacilityInput] = useState('')
+  const [showNewThemeResearchInput, setShowNewThemeResearchInput] = useState(false)
+  const [newThemeResearchInput, setNewThemeResearchInput] = useState('')
+  const [showNewDampakInput, setShowNewDampakInput] = useState(false)
+  const [newDampakInput, setNewDampakInput] = useState('')
+  const [showNewCollabInput, setShowNewCollabInput] = useState(false)
+  const [newCollabInput, setNewCollabInput] = useState('')
+
+  // Master Categories State (Backward-compatible string arrays for selectors)
   const [categories, setCategories] = useState({
     tema_riset: ['Energi & Material', 'Kesehatan', 'Pangan & Pertanian', 'Lingkungan', 'Teknologi Digital', 'Maritim'],
     tipe_fasilitas: ['Laboratorium', 'Observatorium', 'Pilot Plant', 'Akses Data & Koleksi'],
@@ -103,17 +137,33 @@ export default function KSTFormPage({ onSaveSuccess }) {
     is_active: true
   })
 
-  // Load Categories & Provinces on Mount
+  // Load Master Data & Provinces on Mount
   useEffect(() => {
     let isMounted = true
-    fetchKSTCategories().then((res) => {
-      if (isMounted && res) {
-        setCategories(prev => ({
-          tema_riset: res.tema_riset?.length ? res.tema_riset : prev.tema_riset,
-          tipe_fasilitas: res.tipe_fasilitas?.length ? res.tipe_fasilitas : prev.tipe_fasilitas,
-          potensi_kolaborasi: res.potensi_kolaborasi?.length ? res.potensi_kolaborasi : prev.potensi_kolaborasi,
-        }))
-      }
+
+    // Fetch individual master data tables
+    Promise.all([
+      fetchThemes(true).catch(() => []),
+      fetchFacilities(true).catch(() => []),
+      fetchDampak(true).catch(() => []),
+      fetchCollaborations(true).catch(() => [])
+    ]).then(([themes, facilities, dampak, collaborations]) => {
+      if (!isMounted) return
+      const tActive = (themes || []).filter(x => x.is_active !== false)
+      const fActive = (facilities || []).filter(x => x.is_active !== false)
+      const dActive = (dampak || []).filter(x => x.is_active !== false)
+      const cActive = (collaborations || []).filter(x => x.is_active !== false)
+
+      if (tActive.length) setMasterThemes(tActive)
+      if (fActive.length) setMasterFacilities(fActive)
+      if (dActive.length) setMasterDampak(dActive)
+      if (cActive.length) setMasterCollaborations(cActive)
+
+      setCategories(prev => ({
+        tema_riset: tActive.length ? tActive.map(t => t.nama) : prev.tema_riset,
+        tipe_fasilitas: fActive.length ? fActive.map(f => f.nama) : prev.tipe_fasilitas,
+        potensi_kolaborasi: cActive.length ? cActive.map(c => c.nama) : prev.potensi_kolaborasi,
+      }))
     })
 
     const loadProvinces = async () => {
@@ -144,6 +194,57 @@ export default function KSTFormPage({ onSaveSuccess }) {
       const updated = exists ? current.filter(k => k !== kolab) : [...current, kolab]
       return { ...prev, potensi_kolaborasi: updated }
     })
+  }
+
+  // Inline Master Creation Handlers
+  const handleCreateInlineTheme = async () => {
+    const val = newThemeInput.trim()
+    if (!val) return
+    setCreatingMaster(true)
+    try {
+      const res = await createTheme({ nama: val })
+      setMasterThemes(prev => [...prev, res])
+      setCategories(prev => ({
+        ...prev,
+        tema_riset: prev.tema_riset.includes(res.nama) ? prev.tema_riset : [...prev.tema_riset, res.nama]
+      }))
+      setFormData(prev => ({
+        ...prev,
+        fokus_utama: [...(prev.fokus_utama || []), res.nama]
+      }))
+      setNewThemeInput('')
+      setShowNewThemeInput(false)
+      toast.success(`Tema riset "${res.nama}" dibuat dan dipilih`)
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuat tema riset baru')
+    } finally {
+      setCreatingMaster(false)
+    }
+  }
+
+  const handleCreateInlineCollab = async () => {
+    const val = newCollabInput.trim()
+    if (!val) return
+    setCreatingMaster(true)
+    try {
+      const res = await createCollaboration({ nama: val })
+      setMasterCollaborations(prev => [...prev, res])
+      setCategories(prev => ({
+        ...prev,
+        potensi_kolaborasi: prev.potensi_kolaborasi.includes(res.nama) ? prev.potensi_kolaborasi : [...prev.potensi_kolaborasi, res.nama]
+      }))
+      setFormData(prev => ({
+        ...prev,
+        potensi_kolaborasi: [...(prev.potensi_kolaborasi || []), res.nama]
+      }))
+      setNewCollabInput('')
+      setShowNewCollabInput(false)
+      toast.success(`Sektor kolaborasi "${res.nama}" dibuat dan dipilih`)
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuat sektor kolaborasi baru')
+    } finally {
+      setCreatingMaster(false)
+    }
   }
 
   // When Province Changes, fetch its Cities/Regencies & auto-set Wilayah
@@ -322,6 +423,44 @@ export default function KSTFormPage({ onSaveSuccess }) {
     }))
   }
 
+  const addFacilityFromMaster = (fac) => {
+    setFormData(prev => ({
+      ...prev,
+      fasilitas: [
+        ...prev.fasilitas,
+        {
+          nama: fac.nama,
+          tipe: fac.nama,
+          deskripsi: fac.deskripsi || ''
+        }
+      ],
+      highlight_fasilitas: prev.fasilitas.length + 1
+    }))
+    toast.success(`Fasilitas "${fac.nama}" ditambahkan ke formulir`)
+  }
+
+  const handleCreateInlineFacility = async () => {
+    const val = newFacilityInput.trim()
+    if (!val) return
+    setCreatingMaster(true)
+    try {
+      const res = await createFacility({ nama: val })
+      setMasterFacilities(prev => [...prev, res])
+      setCategories(prev => ({
+        ...prev,
+        tipe_fasilitas: prev.tipe_fasilitas.includes(res.nama) ? prev.tipe_fasilitas : [...prev.tipe_fasilitas, res.nama]
+      }))
+      addFacilityFromMaster(res)
+      setNewFacilityInput('')
+      setShowNewFacilityInput(false)
+      toast.success(`Master fasilitas "${res.nama}" dibuat dan ditambahkan`)
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuat fasilitas baru')
+    } finally {
+      setCreatingMaster(false)
+    }
+  }
+
   const updateFacility = (index, field, value) => {
     setFormData(prev => {
       const updated = [...prev.fasilitas]
@@ -348,6 +487,44 @@ export default function KSTFormPage({ onSaveSuccess }) {
     }))
   }
 
+  const addResearchFromMaster = (theme) => {
+    setFormData(prev => ({
+      ...prev,
+      riset: [
+        ...prev.riset,
+        {
+          judul: `Riset ${theme.nama}`,
+          bidang: theme.nama,
+          deskripsi: theme.deskripsi || ''
+        }
+      ],
+      highlight_bidang_riset: prev.riset.length + 1
+    }))
+    toast.success(`Bidang riset "${theme.nama}" ditambahkan ke formulir`)
+  }
+
+  const handleCreateInlineThemeResearch = async () => {
+    const val = newThemeResearchInput.trim()
+    if (!val) return
+    setCreatingMaster(true)
+    try {
+      const res = await createTheme({ nama: val })
+      setMasterThemes(prev => [...prev, res])
+      setCategories(prev => ({
+        ...prev,
+        tema_riset: prev.tema_riset.includes(res.nama) ? prev.tema_riset : [...prev.tema_riset, res.nama]
+      }))
+      addResearchFromMaster(res)
+      setNewThemeResearchInput('')
+      setShowNewThemeResearchInput(false)
+      toast.success(`Master tema riset "${res.nama}" dibuat dan ditambahkan`)
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuat tema riset baru')
+    } finally {
+      setCreatingMaster(false)
+    }
+  }
+
   const updateResearch = (index, field, value) => {
     setFormData(prev => {
       const updated = [...prev.riset]
@@ -370,6 +547,38 @@ export default function KSTFormPage({ onSaveSuccess }) {
       ...prev,
       dampak: [...prev.dampak, { judul: '', keterangan: '' }]
     }))
+  }
+
+  const addImpactFromMaster = (dampak) => {
+    setFormData(prev => ({
+      ...prev,
+      dampak: [
+        ...prev.dampak,
+        {
+          judul: dampak.nama,
+          keterangan: dampak.deskripsi || ''
+        }
+      ]
+    }))
+    toast.success(`Pilar dampak "${dampak.nama}" ditambahkan ke formulir`)
+  }
+
+  const handleCreateInlineDampak = async () => {
+    const val = newDampakInput.trim()
+    if (!val) return
+    setCreatingMaster(true)
+    try {
+      const res = await createDampak({ nama: val })
+      setMasterDampak(prev => [...prev, res])
+      addImpactFromMaster(res)
+      setNewDampakInput('')
+      setShowNewDampakInput(false)
+      toast.success(`Master pilar dampak "${res.nama}" dibuat dan ditambahkan`)
+    } catch (err) {
+      toast.error(err.message || 'Gagal membuat pilar dampak baru')
+    } finally {
+      setCreatingMaster(false)
+    }
   }
 
   const updateImpact = (index, field, value) => {
@@ -815,13 +1024,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">Tema Riset</Label>
+                <Label className="text-xs font-semibold">Tema Riset (Fokus Utama)</Label>
                 <span className="text-[11px] text-zinc-400 font-mono">
                   {(formData.fokus_utama || []).length} terpilih
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-500">Pilih tema riset yang menjadi fokus utama kawasan ini:</p>
-              <div className="flex flex-wrap gap-2 pt-1">
+              <p className="text-[11px] text-zinc-500">Pilih tema riset yang menjadi fokus utama kawasan ini (tinggal klik untuk memilih, atau buat baru):</p>
+              <div className="flex flex-wrap gap-2 pt-1 items-center">
                 {categories.tema_riset.map((tema) => {
                   const isSelected = (formData.fokus_utama || []).includes(tema)
                   return (
@@ -829,17 +1038,65 @@ export default function KSTFormPage({ onSaveSuccess }) {
                       key={tema}
                       type="button"
                       onClick={() => toggleTemaRiset(tema)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer ${
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer flex items-center gap-1 ${
                         isSelected
                           ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-sm'
                           : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
                       }`}
                     >
-                      {isSelected ? '✓ ' : '+ '}
-                      {tema}
+                      {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                      <span>{tema}</span>
                     </button>
                   )
                 })}
+
+                {showNewThemeInput ? (
+                  <div className="flex items-center gap-1.5 p-1 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60">
+                    <Input
+                      autoFocus
+                      value={newThemeInput}
+                      onChange={(e) => setNewThemeInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleCreateInlineTheme()
+                        }
+                      }}
+                      placeholder="Nama tema riset baru..."
+                      className="h-7 text-xs border-0 bg-transparent px-2.5 w-44 focus-visible:ring-0"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleCreateInlineTheme}
+                      disabled={creatingMaster || !newThemeInput.trim()}
+                      className="h-6 px-2.5 text-[11px] rounded-full"
+                    >
+                      {creatingMaster ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Simpan'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowNewThemeInput(false)
+                        setNewThemeInput('')
+                      }}
+                      className="h-6 px-2 text-[11px] rounded-full"
+                    >
+                      Batal
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowNewThemeInput(true)}
+                    className="px-3 py-1.5 rounded-full text-xs font-medium border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Buat Tema Baru</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -862,7 +1119,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Fasilitas Unggulan Kawasan</h3>
-              <p className="text-xs text-zinc-500">Tambahkan fasilitas unggulan kawasan (Laboratorium, Pilot Plant, Observatorium, dll.).</p>
+              <p className="text-xs text-zinc-500">Pilih dari master fasilitas di bawah atau buat fasilitas kustom manual.</p>
             </div>
             <Button
               type="button"
@@ -872,15 +1129,106 @@ export default function KSTFormPage({ onSaveSuccess }) {
               className="h-8 text-xs gap-1 font-medium"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Fasilitas</span>
+              <span>Tambah Fasilitas Manual</span>
             </Button>
+          </div>
+
+          {/* Quick Picker Bar dari Master Fasilitas */}
+          <div className="p-4 rounded-xl bg-zinc-50/80 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Pilih Fasilitas Cepat (Tinggal Klik untuk Menambahkan)</span>
+              </div>
+              <span className="text-[11px] text-zinc-400 font-mono">
+                {masterFacilities.length} master tersedia
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Klik fasilitas di bawah untuk menambahkan langsung ke daftar kawasan ini beserta deskripsi singkatnya:
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1 items-center">
+              {masterFacilities.map((fac) => {
+                const countAdded = formData.fasilitas.filter(f => f.nama.toLowerCase() === fac.nama.toLowerCase()).length
+                return (
+                  <button
+                    key={fac.id || fac.nama}
+                    type="button"
+                    onClick={() => addFacilityFromMaster(fac)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border flex items-center gap-1.5 cursor-pointer ${
+                      countAdded > 0
+                        ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700 shadow-sm'
+                        : 'bg-white dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-xs'
+                    }`}
+                    title={fac.deskripsi || fac.nama}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>{fac.nama}</span>
+                    {countAdded > 0 && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
+                        ({countAdded})
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+
+              {showNewFacilityInput ? (
+                <div className="flex items-center gap-1.5 p-1 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                  <Input
+                    autoFocus
+                    value={newFacilityInput}
+                    onChange={(e) => setNewFacilityInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleCreateInlineFacility()
+                      }
+                    }}
+                    placeholder="Nama fasilitas baru..."
+                    className="h-7 text-xs border-0 bg-transparent px-2 w-44 focus-visible:ring-0"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateInlineFacility}
+                    disabled={creatingMaster || !newFacilityInput.trim()}
+                    className="h-6 px-2.5 text-[11px]"
+                  >
+                    {creatingMaster ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Simpan'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowNewFacilityInput(false)
+                      setNewFacilityInput('')
+                    }}
+                    className="h-6 px-2 text-[11px]"
+                  >
+                    Batal
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewFacilityInput(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Buat Fasilitas Baru</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {formData.fasilitas.length === 0 ? (
             <div className="p-8 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-center space-y-2 text-zinc-400">
               <FlaskConical className="w-8 h-8 mx-auto stroke-1 text-zinc-400" />
               <div className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Belum ada fasilitas yang ditambahkan</div>
-              <p className="text-[11px] text-zinc-400">Klik tombol di bawah untuk menambah fasilitas pertama.</p>
+              <p className="text-[11px] text-zinc-400">Pilih fasilitas siap pakai di atas atau klik Tambah Fasilitas Manual.</p>
               <Button
                 type="button"
                 variant="outline"
@@ -889,7 +1237,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                 className="h-8 text-xs gap-1.5 mt-2"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Fasilitas</span>
+                <span>Tambah Fasilitas Manual</span>
               </Button>
             </div>
           ) : (
@@ -951,13 +1299,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
         </Card>
       )}
 
-      {/* TAB 4: BIDANG RISET (Murni Dinamis via Tombol +) */}
+      {/* TAB 4: BIDANG RISET */}
       {activeTab === 'riset' && (
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Bidang Riset & Inovasi</h3>
-              <p className="text-xs text-zinc-500">Gunakan tombol <strong>+ Tambah Bidang Riset</strong> untuk menambah kartu riset sesuai kebutuhan.</p>
+              <p className="text-xs text-zinc-500">Pilih dari master tema riset di bawah atau buat bidang riset kustom secara manual.</p>
             </div>
             <Button
               type="button"
@@ -967,15 +1315,106 @@ export default function KSTFormPage({ onSaveSuccess }) {
               className="h-8 text-xs gap-1 font-medium"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Bidang Riset</span>
+              <span>Tambah Bidang Riset Manual</span>
             </Button>
+          </div>
+
+          {/* Quick Picker Bar dari Master Tema Riset */}
+          <div className="p-4 rounded-xl bg-zinc-50/80 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Pilih Tema Riset Cepat (Tinggal Klik untuk Menambahkan)</span>
+              </div>
+              <span className="text-[11px] text-zinc-400 font-mono">
+                {masterThemes.length} tema tersedia
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Klik tema riset di bawah untuk otomatis menambahkan kartu riset beserta ringkasan deskripsinya:
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1 items-center">
+              {masterThemes.map((theme) => {
+                const countAdded = formData.riset.filter(r => r.bidang.toLowerCase() === theme.nama.toLowerCase()).length
+                return (
+                  <button
+                    key={theme.id || theme.nama}
+                    type="button"
+                    onClick={() => addResearchFromMaster(theme)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border flex items-center gap-1.5 cursor-pointer ${
+                      countAdded > 0
+                        ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700 shadow-sm'
+                        : 'bg-white dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-xs'
+                    }`}
+                    title={theme.deskripsi || theme.nama}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>{theme.nama}</span>
+                    {countAdded > 0 && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
+                        ({countAdded})
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+
+              {showNewThemeResearchInput ? (
+                <div className="flex items-center gap-1.5 p-1 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                  <Input
+                    autoFocus
+                    value={newThemeResearchInput}
+                    onChange={(e) => setNewThemeResearchInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleCreateInlineThemeResearch()
+                      }
+                    }}
+                    placeholder="Nama tema riset baru..."
+                    className="h-7 text-xs border-0 bg-transparent px-2 w-44 focus-visible:ring-0"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateInlineThemeResearch}
+                    disabled={creatingMaster || !newThemeResearchInput.trim()}
+                    className="h-6 px-2.5 text-[11px]"
+                  >
+                    {creatingMaster ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Simpan'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowNewThemeResearchInput(false)
+                      setNewThemeResearchInput('')
+                    }}
+                    className="h-6 px-2 text-[11px]"
+                  >
+                    Batal
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewThemeResearchInput(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Buat Tema Baru</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {formData.riset.length === 0 ? (
             <div className="p-8 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-center space-y-2 text-zinc-400">
               <Sparkles className="w-8 h-8 mx-auto stroke-1 text-zinc-400" />
               <div className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Belum ada bidang riset yang ditambahkan</div>
-              <p className="text-[11px] text-zinc-400">Klik tombol di bawah untuk menambah bidang riset kawasan ini.</p>
+              <p className="text-[11px] text-zinc-400">Pilih tema riset siap pakai di atas atau klik Tambah Bidang Riset Manual.</p>
               <Button
                 type="button"
                 variant="outline"
@@ -984,7 +1423,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                 className="h-8 text-xs gap-1.5 mt-2"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Bidang Riset</span>
+                <span>Tambah Bidang Riset Manual</span>
               </Button>
             </div>
           ) : (
@@ -1070,13 +1509,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
         </Card>
       )}
 
-      {/* TAB 5: DAMPAK & KOLABORASI (Murni Dinamis via Tombol +) */}
+      {/* TAB 5: DAMPAK & KOLABORASI */}
       {activeTab === 'dampak' && (
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Dampak Strategis & Data Highlight</h3>
-              <p className="text-xs text-zinc-500">Gunakan tombol <strong>+ Tambah Pilar Dampak</strong> untuk menambahkan pilar dampak kawasan.</p>
+              <p className="text-xs text-zinc-500">Pilih dari master pilar dampak di bawah atau buat pilar dampak kustom secara manual.</p>
             </div>
             <Button
               type="button"
@@ -1086,8 +1525,99 @@ export default function KSTFormPage({ onSaveSuccess }) {
               className="h-8 text-xs gap-1 font-medium"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Pilar Dampak</span>
+              <span>Tambah Pilar Dampak Manual</span>
             </Button>
+          </div>
+
+          {/* Quick Picker Bar dari Master Pilar Dampak */}
+          <div className="p-4 rounded-xl bg-zinc-50/80 dark:bg-zinc-950/50 border border-zinc-200 dark:border-zinc-800 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Pilih Pilar Dampak Cepat (Tinggal Klik untuk Menambahkan)</span>
+              </div>
+              <span className="text-[11px] text-zinc-400 font-mono">
+                {masterDampak.length} pilar tersedia
+              </span>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Klik pilar dampak di bawah untuk menambahkan langsung ke daftar beserta uraian dampaknya:
+            </p>
+
+            <div className="flex flex-wrap gap-2 pt-1 items-center">
+              {masterDampak.map((item) => {
+                const countAdded = formData.dampak.filter(d => d.judul.toLowerCase() === item.nama.toLowerCase()).length
+                return (
+                  <button
+                    key={item.id || item.nama}
+                    type="button"
+                    onClick={() => addImpactFromMaster(item)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 border flex items-center gap-1.5 cursor-pointer ${
+                      countAdded > 0
+                        ? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-zinc-700 shadow-sm'
+                        : 'bg-white dark:bg-zinc-900/90 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-900 dark:hover:border-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-xs'
+                    }`}
+                    title={item.deskripsi || item.nama}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-zinc-500" />
+                    <span>{item.nama}</span>
+                    {countAdded > 0 && (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-semibold">
+                        ({countAdded})
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+
+              {showNewDampakInput ? (
+                <div className="flex items-center gap-1.5 p-1 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900">
+                  <Input
+                    autoFocus
+                    value={newDampakInput}
+                    onChange={(e) => setNewDampakInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleCreateInlineDampak()
+                      }
+                    }}
+                    placeholder="Nama pilar dampak baru..."
+                    className="h-7 text-xs border-0 bg-transparent px-2 w-44 focus-visible:ring-0"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateInlineDampak}
+                    disabled={creatingMaster || !newDampakInput.trim()}
+                    className="h-6 px-2.5 text-[11px]"
+                  >
+                    {creatingMaster ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Simpan'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowNewDampakInput(false)
+                      setNewDampakInput('')
+                    }}
+                    className="h-6 px-2 text-[11px]"
+                  >
+                    Batal
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewDampakInput(true)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Buat Pilar Baru</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Pilar Dampak Dinamis */}
@@ -1095,7 +1625,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
             <div className="p-8 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-center space-y-2 text-zinc-400">
               <Award className="w-8 h-8 mx-auto stroke-1 text-zinc-400" />
               <div className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Belum ada pilar dampak yang ditambahkan</div>
-              <p className="text-[11px] text-zinc-400">Klik tombol di bawah untuk menambah pilar dampak strategis kawasan.</p>
+              <p className="text-[11px] text-zinc-400">Pilih pilar dampak siap pakai di atas atau klik Tambah Pilar Dampak Manual.</p>
               <Button
                 type="button"
                 variant="outline"
@@ -1104,7 +1634,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                 className="h-8 text-xs gap-1.5 mt-2"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Pilar Dampak</span>
+                <span>Tambah Pilar Dampak Manual</span>
               </Button>
             </div>
           ) : (
@@ -1206,8 +1736,8 @@ export default function KSTFormPage({ onSaveSuccess }) {
                 {(formData.potensi_kolaborasi || []).length} terpilih
               </span>
             </div>
-            <p className="text-[11px] text-zinc-500">Pilih sektor mitra kerja sama yang menjadi potensi kolaborasi kawasan:</p>
-            <div className="flex flex-wrap gap-2 pt-1">
+            <p className="text-[11px] text-zinc-500">Pilih sektor mitra kerja sama yang menjadi potensi kolaborasi kawasan (tinggal klik untuk memilih, atau buat baru):</p>
+            <div className="flex flex-wrap gap-2 pt-1 items-center">
               {categories.potensi_kolaborasi.map((kolab) => {
                 const isSelected = (formData.potensi_kolaborasi || []).includes(kolab)
                 return (
@@ -1215,17 +1745,65 @@ export default function KSTFormPage({ onSaveSuccess }) {
                     key={kolab}
                     type="button"
                     onClick={() => togglePotensiKolaborasi(kolab)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer flex items-center gap-1 ${
                       isSelected
                         ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-sm'
                         : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
                     }`}
                   >
-                    {isSelected ? '✓ ' : '+ '}
-                    {kolab}
+                    {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                    <span>{kolab}</span>
                   </button>
                 )
               })}
+
+              {showNewCollabInput ? (
+                <div className="flex items-center gap-1.5 p-1 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60">
+                  <Input
+                    autoFocus
+                    value={newCollabInput}
+                    onChange={(e) => setNewCollabInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleCreateInlineCollab()
+                      }
+                    }}
+                    placeholder="Nama sektor baru..."
+                    className="h-7 text-xs border-0 bg-transparent px-2.5 w-44 focus-visible:ring-0"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCreateInlineCollab}
+                    disabled={creatingMaster || !newCollabInput.trim()}
+                    className="h-6 px-2.5 text-[11px] rounded-full"
+                  >
+                    {creatingMaster ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Simpan'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowNewCollabInput(false)
+                      setNewCollabInput('')
+                    }}
+                    className="h-6 px-2 text-[11px] rounded-full"
+                  >
+                    Batal
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNewCollabInput(true)}
+                  className="px-3 py-1.5 rounded-full text-xs font-medium border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>Buat Sektor Baru</span>
+                </button>
+              )}
             </div>
           </div>
 
