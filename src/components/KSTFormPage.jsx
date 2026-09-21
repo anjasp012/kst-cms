@@ -303,10 +303,9 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
   // Research handlers (+ Button)
   const addResearch = () => {
-    const nextNum = formData.riset.length + 1
     setFormData(prev => ({
       ...prev,
-      riset: [...prev.riset, { judul: `${nextNum}. `, bidang: 'Pangan & Pertanian', deskripsi: '' }],
+      riset: [...prev.riset, { judul: '', bidang: 'Pangan & Pertanian', deskripsi: '' }],
       highlight_bidang_riset: prev.riset.length + 1
     }))
   }
@@ -975,7 +974,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                   className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-mono text-zinc-400 font-semibold">Bidang Riset #{idx + 1}</span>
+                    <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Bidang Riset</span>
                     <button
                       type="button"
                       onClick={() => removeResearch(idx)}
@@ -988,12 +987,12 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[11px]">Judul / Penomoran</Label>
+                      <Label className="text-[11px]">Judul Riset</Label>
                       <Input
                         value={r.judul}
                         onChange={(e) => updateResearch(idx, 'judul', e.target.value)}
-                        placeholder="1. Pangan"
-                        className="h-8 text-xs bg-white dark:bg-zinc-900 font-mono"
+                        placeholder="Contoh: Riset Pangan Terpadu"
+                        className="h-8 text-xs bg-white dark:bg-zinc-900"
                       />
                     </div>
                     <div className="space-y-1">
