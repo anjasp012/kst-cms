@@ -51,8 +51,8 @@ const TYPE_CONFIG = {
     placeholder: 'Contoh: Kecerdasan Buatan & Robotika',
   },
   tipe_fasilitas: {
-    label: 'Tipe Fasilitas',
-    singular: 'Tipe Fasilitas',
+    label: 'Fasilitas',
+    singular: 'Fasilitas',
     description: 'Jenis sarana dan prasarana riset yang disediakan oleh KST (contoh: Laboratorium, Pilot Plant, Observatorium).',
     icon: Cpu,
     color: 'blue',
@@ -60,9 +60,9 @@ const TYPE_CONFIG = {
     placeholder: 'Contoh: Cleanroom & Fabrikasi Mikro',
   },
   potensi_kolaborasi: {
-    label: 'Potensi Kolaborasi',
-    singular: 'Potensi Kolaborasi',
-    description: 'Sektor dan mitra kerja sama strategis KST (contoh: Industri, Akademisi, Pemerintah, Komunitas).',
+    label: 'Dampak & Kolaborasi',
+    singular: 'Dampak & Kolaborasi',
+    description: 'Sektor dan pilar potensi kolaborasi strategis serta dampak kawasan KST (Industri, Akademisi, Pemerintah, Komunitas).',
     icon: Handshake,
     color: 'amber',
     badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
@@ -304,10 +304,11 @@ export default function CategoryManagementView({
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 text-zinc-500 font-mono">
                   <th className="py-3 px-4 w-12 text-center">NO</th>
-                  <th className="py-3 px-4">NAMA</th>
-                  <th className="py-3 px-4 font-mono">SLUG IDENTIFIER</th>
+                  <th className="py-3 px-4 w-48">NAMA</th>
+                  <th className="py-3 px-4 min-w-[200px]">DESKRIPSI SINGKAT</th>
+                  <th className="py-3 px-4 font-mono w-36">SLUG</th>
                   <th className="py-3 px-4 text-center w-28">STATUS</th>
-                  <th className="py-3 px-4 text-right w-28">AKSI</th>
+                  <th className="py-3 px-4 text-right w-24">AKSI</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
@@ -321,9 +322,16 @@ export default function CategoryManagementView({
                     </td>
                     <td className="py-3 px-4 font-medium text-zinc-900 dark:text-zinc-100">
                       <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 group-hover:bg-zinc-900 dark:group-hover:bg-zinc-100 transition-colors" />
-                        <span>{item.nama}</span>
+                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 group-hover:bg-zinc-900 dark:group-hover:bg-zinc-100 transition-colors flex-shrink-0" />
+                        <span className="font-semibold">{item.nama}</span>
                       </div>
+                    </td>
+                    <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
+                      {item.deskripsi ? (
+                        <span className="line-clamp-2 leading-relaxed">{item.deskripsi}</span>
+                      ) : (
+                        <span className="text-zinc-400 dark:text-zinc-600 italic text-[11px]">- Belum ada deskripsi -</span>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
                       {item.slug}
@@ -411,6 +419,19 @@ export default function CategoryManagementView({
                   onChange={handleNameChange}
                   placeholder={config.placeholder}
                   className="h-9 text-xs bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Deskripsi Singkat <span className="text-zinc-400 font-normal">(Opsional)</span>
+                </Label>
+                <textarea
+                  rows={2}
+                  value={formData.deskripsi || ''}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, deskripsi: e.target.value }))}
+                  placeholder={`Penjelasan ringkas mengenai ${config.singular.toLowerCase()} ini...`}
+                  className="w-full p-2.5 rounded-md text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 leading-relaxed resize-none"
                 />
               </div>
 
@@ -504,3 +525,4 @@ export default function CategoryManagementView({
     </div>
   )
 }
+

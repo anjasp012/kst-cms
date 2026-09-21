@@ -341,78 +341,66 @@ export default function WilayahManagementView({ onWilayahChanged }) {
 
       {/* Add / Edit Dialog */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl p-0 overflow-hidden">
-          {/* Header */}
-          <div className="p-5 pb-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-zinc-100 dark:text-zinc-900 shadow-sm flex-shrink-0">
-                <Globe2 className="w-4 h-4" />
-              </div>
-              <div>
-                <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  {editingItem ? 'Ubah Data Provinsi' : 'Tambah Provinsi Baru'}
-                </DialogTitle>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  Master 38 Provinsi dan penetapan kelompok wilayah kerja BRIN.
-                </p>
-              </div>
-            </div>
-          </div>
+        <DialogContent className="sm:max-w-md bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-semibold flex items-center gap-2">
+              <Globe2 className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+              <span>{editingItem ? 'Ubah Data Provinsi' : 'Tambah Provinsi Baru'}</span>
+            </DialogTitle>
+          </DialogHeader>
 
-          <form onSubmit={handleSave}>
-            <div className="p-5 space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Kode Kemendagri <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  required
-                  disabled={Boolean(editingItem)}
-                  value={formData.kode}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, kode: e.target.value }))}
-                  placeholder="Contoh: 31 (DKI Jakarta)"
-                  className="h-9 text-xs font-mono bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Nama Provinsi <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  required
-                  value={formData.nama}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, nama: e.target.value }))}
-                  placeholder="Contoh: JAWA BARAT"
-                  className="h-9 text-xs bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Kelompok Wilayah BRIN <span className="text-rose-500">*</span>
-                </Label>
-                <select
-                  value={formData.wilayah}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, wilayah: e.target.value }))}
-                  className="w-full h-9 rounded-md text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400"
-                >
-                  {WILAYAH_OPTIONS.map((w) => (
-                    <option key={w} value={w}>
-                      {w}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <form onSubmit={handleSave} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Kode Kemendagri <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                required
+                disabled={Boolean(editingItem)}
+                value={formData.kode}
+                onChange={(e) => setFormData((prev) => ({ ...prev, kode: e.target.value }))}
+                placeholder="Contoh: 31 (DKI Jakarta)"
+                className="text-xs font-mono bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+              />
             </div>
 
-            <div className="p-4 px-5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-end gap-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Nama Provinsi <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                required
+                value={formData.nama}
+                onChange={(e) => setFormData((prev) => ({ ...prev, nama: e.target.value }))}
+                placeholder="Contoh: JAWA BARAT"
+                className="text-xs bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Kelompok Wilayah BRIN <span className="text-rose-500">*</span>
+              </Label>
+              <select
+                value={formData.wilayah}
+                onChange={(e) => setFormData((prev) => ({ ...prev, wilayah: e.target.value }))}
+                className="w-full h-9 rounded-md text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 px-3 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400"
+              >
+                {WILAYAH_OPTIONS.map((w) => (
+                  <option key={w} value={w}>
+                    {w}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <DialogFooter className="pt-3 border-t border-zinc-200 dark:border-zinc-800">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setFormOpen(false)}
-                className="text-xs h-9 border-zinc-200 dark:border-zinc-800"
+                className="text-xs"
               >
                 Batal
               </Button>
@@ -420,7 +408,7 @@ export default function WilayahManagementView({ onWilayahChanged }) {
                 type="submit"
                 size="sm"
                 disabled={saving}
-                className="h-9 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-sm px-4"
+                className="bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium"
               >
                 {saving ? (
                   <>
@@ -431,7 +419,7 @@ export default function WilayahManagementView({ onWilayahChanged }) {
                   'Simpan Data'
                 )}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>

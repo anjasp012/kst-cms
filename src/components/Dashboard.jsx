@@ -75,8 +75,8 @@ export default function Dashboard({ username, onLogout }) {
     'kst-form': 'Form Kawasan Sains dan Teknologi (6 Tab)',
     partners: 'Direktori Mitra Riset Daerah (BRIDA / BAPPERIDA / BAPPEDA)',
     'tema-riset': 'Master Data — Tema Riset',
-    'tipe-fasilitas': 'Master Data — Tipe Fasilitas',
-    'potensi-kolaborasi': 'Master Data — Potensi Kolaborasi',
+    'tipe-fasilitas': 'Master Data — Fasilitas',
+    'potensi-kolaborasi': 'Master Data — Dampak & Kolaborasi',
     wilayah: 'Master Data — Wilayah & 38 Provinsi Indonesia',
   }
 
@@ -187,13 +187,13 @@ export default function Dashboard({ username, onLogout }) {
         },
         {
           id: 'tipe-fasilitas',
-          label: 'Tipe Fasilitas',
+          label: 'Fasilitas',
           icon: Cpu,
           count: categoriesData.tipe_fasilitas?.length,
         },
         {
           id: 'potensi-kolaborasi',
-          label: 'Potensi Kolaborasi',
+          label: 'Dampak & Kolaborasi',
           icon: Handshake,
           count: categoriesData.potensi_kolaborasi?.length,
         },
