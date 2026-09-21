@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +27,6 @@ import {
   Loader2 
 } from 'lucide-react'
 import KSTDetailModal from './KSTDetailModal'
-import KSTFormModal from './KSTFormModal'
 import { getImageUrl } from '@/lib/utils'
 import { fetchKSTDetail } from '@/lib/api'
 import { toast } from 'sonner'
@@ -38,12 +38,11 @@ export default function KSTManagementView({
   onUpdate,
   onDelete,
 }) {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [selectedWilayah, setSelectedWilayah] = useState('ALL')
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [selectedKSTDetail, setSelectedKSTDetail] = useState(null)
-  const [formModalOpen, setFormModalOpen] = useState(false)
-  const [editingKST, setEditingKST] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
   const wilayahList = ['ALL', 'Sumatera', 'Jawa', 'Kalimantan', 'Sulawesi', 'Nusa Tenggara', 'Maluku & Papua']
@@ -71,25 +70,6 @@ export default function KSTManagementView({
     }
   }
 
-  const handleOpenEdit = async (item) => {
-    try {
-      const fullDetail = await fetchKSTDetail(item.id)
-      setEditingKST(fullDetail)
-      setFormModalOpen(true)
-    } catch (err) {
-      setEditingKST(item)
-      setFormModalOpen(true)
-    }
-  }
-
-  const handleSaveForm = async (payload) => {
-    if (editingKST) {
-      await onUpdate(editingKST.id, payload)
-    } else {
-      await onCreate(payload)
-    }
-  }
-
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Top Header & Search Bar */}
@@ -109,10 +89,7 @@ export default function KSTManagementView({
 
         <Button
           size="sm"
-          onClick={() => {
-            setEditingKST(null)
-            setFormModalOpen(true)
-          }}
+          onClick={() => navigate('/kst/new')}
           className="h-9 text-xs font-medium gap-1.5"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -250,7 +227,7 @@ export default function KSTManagementView({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleOpenEdit(item)}
+                          onClick={() => navigate(`/kst/edit/${item.id}`)}
                           className="h-7 w-7 p-0 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
                           title="Edit"
                         >
@@ -282,17 +259,6 @@ export default function KSTManagementView({
         onClose={() => {
           setDetailModalOpen(false)
           setSelectedKSTDetail(null)
-        }}
-      />
-
-      {/* Form Modal */}
-      <KSTFormModal
-        open={formModalOpen}
-        kst={editingKST}
-        onSave={handleSaveForm}
-        onClose={() => {
-          setFormModalOpen(false)
-          setEditingKST(null)
         }}
       />
 

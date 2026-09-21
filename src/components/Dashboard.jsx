@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import KSTManagementView from './KSTManagementView'
+import KSTFormPage from './KSTFormPage'
 import PartnersView from './PartnersView'
 import {
   fetchKSTLocations,
@@ -37,6 +38,7 @@ export default function Dashboard({ username, onLogout }) {
   const currentView = useMemo(() => {
     const path = location.pathname.replace(/^\//, '')
     if (path === 'partners') return 'partners'
+    if (path === 'kst/new' || path.startsWith('kst/edit')) return 'kst-form'
     return 'kst'
   }, [location.pathname])
 
@@ -56,6 +58,7 @@ export default function Dashboard({ username, onLogout }) {
 
   const viewTitles = {
     kst: 'Kawasan Sains dan Teknologi (KST) BRIN',
+    'kst-form': 'Form Kawasan Sains dan Teknologi (6 Tab)',
     partners: 'Direktori Mitra Riset Daerah (BRIDA / BAPPERIDA / BAPPEDA)',
   }
 
@@ -325,7 +328,14 @@ export default function Dashboard({ username, onLogout }) {
             />
           )}
 
-          {/* 2. Regional Partners (BAPPEDA/BAPPERIDA/BRIDA) */}
+          {/* 2. KST Dedicated Form Page (Create / Edit 6 Tabs) */}
+          {currentView === 'kst-form' && (
+            <KSTFormPage
+              onSaveSuccess={() => loadData(true)}
+            />
+          )}
+
+          {/* 3. Regional Partners (BAPPEDA/BAPPERIDA/BRIDA) */}
           {currentView === 'partners' && (
             <PartnersView
               partners={partners}
