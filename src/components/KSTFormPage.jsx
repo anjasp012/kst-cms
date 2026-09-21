@@ -118,9 +118,9 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
     if (!provId) return
 
-    const provObj = provinces.find(p => p.id === provId)
+    const provObj = provinces.find(p => p.id === provId || p.kode === provId)
     if (provObj) {
-      const autoWilayah = mapProvinceToWilayah(provObj.name)
+      const autoWilayah = provObj.wilayah || mapProvinceToWilayah(provObj.nama || provObj.name)
       setFormData(prev => ({ ...prev, wilayah: autoWilayah }))
     }
 
@@ -138,11 +138,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
     setSelectedRegencyId(regId)
     if (!regId) return
 
-    const regObj = regencies.find(r => r.id === regId)
-    const provObj = provinces.find(p => p.id === selectedProvinceId)
+    const regObj = regencies.find(r => r.id === regId || r.kode === regId)
+    const provObj = provinces.find(p => p.id === selectedProvinceId || p.kode === selectedProvinceId)
 
     if (regObj && provObj) {
-      const formatted = `${formatCityName(regObj.name)}, ${formatProvinceName(provObj.name)}`
+      const regName = regObj.nama || regObj.name
+      const provName = provObj.nama || provObj.name
+      const formatted = `${formatCityName(regName)}, ${formatProvinceName(provName)}`
       setFormData(prev => ({
         ...prev,
         kota_provinsi: formatted
@@ -580,11 +582,15 @@ export default function KSTFormPage({ onSaveSuccess }) {
                       className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
                     >
                       <option value="">-- Pilih Provinsi (38 Provinsi) --</option>
-                      {provinces.map((prov) => (
-                        <option key={prov.id} value={prov.id}>
-                          {formatProvinceName(prov.name)}
-                        </option>
-                      ))}
+                      {provinces.map((prov) => {
+                        const val = prov.id || prov.kode
+                        const label = prov.nama || prov.name
+                        return (
+                          <option key={val} value={val}>
+                            {formatProvinceName(label)}
+                          </option>
+                        )
+                      })}
                     </select>
                   </div>
 
@@ -600,11 +606,15 @@ export default function KSTFormPage({ onSaveSuccess }) {
                       className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs disabled:opacity-50"
                     >
                       <option value="">-- Pilih Kota/Kabupaten --</option>
-                      {regencies.map((reg) => (
-                        <option key={reg.id} value={reg.id}>
-                          {formatCityName(reg.name)}
-                        </option>
-                      ))}
+                      {regencies.map((reg) => {
+                        const val = reg.id || reg.kode
+                        const label = reg.nama || reg.name
+                        return (
+                          <option key={val} value={val}>
+                            {formatCityName(label)}
+                          </option>
+                        )
+                      })}
                     </select>
                   </div>
 

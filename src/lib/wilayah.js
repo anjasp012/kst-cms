@@ -1,9 +1,12 @@
 /**
- * Helper API Wilayah Indonesia (EMSifa API / Kemendagri Open Data)
- * Menyediakan data resmi 38 Provinsi dan 514 Kota/Kabupaten di Indonesia.
+ * Helper API Wilayah Indonesia (Lokal Database KST & Kemendagri 2025/2026)
+ * Menyediakan data resmi 38 Provinsi dan 514 Kota/Kabupaten di Indonesia
+ * langsung dari database internal PostgreSQL (kst_db) tanpa ketergantungan API pihak ketiga.
  */
 
-// Cache in-memory
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8002/api/v1'
+
+// Cache in-memory agar pergantian pilihan instan tanpa re-fetch
 let provincesCache = null
 const regenciesCache = {}
 
@@ -11,13 +14,13 @@ export async function fetchProvinces() {
   if (provincesCache) return provincesCache
 
   try {
-    const res = await fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json')
-    if (!res.ok) throw new Error('Gagal memuat data provinsi')
+    const res = await fetch(`${API_BASE}/kst/wilayah/provinces`)
+    if (!res.ok) throw new Error('Gagal memuat data provinsi dari database')
     const data = await res.json()
     provincesCache = data
     return data
   } catch (err) {
-    console.error('Error fetching provinces:', err)
+    console.error('Error fetching provinces from database:', err)
     return []
   }
 }
@@ -27,8 +30,8 @@ export async function fetchRegencies(provinceId) {
   if (regenciesCache[provinceId]) return regenciesCache[provinceId]
 
   try {
-    const res = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provinceId}.json`)
-    if (!res.ok) throw new Error('Gagal memuat data kota/kabupaten')
+    const res = await fetch(`${API_BASE}/kst/wilayah/regencies?province_kode=${encodeURIComponent(provinceId)}`)
+    if (!res.ok) throw new Error('Gagal memuat data kota/kabupaten dari database')
     const data = await res.json()
     regenciesCache[provinceId] = data
     return data
@@ -39,7 +42,7 @@ export async function fetchRegencies(provinceId) {
 }
 
 /**
- * Mapping otomatis Nama Provinsi ke Wilayah Utama BRIN
+ * Mapping otomatis Nama / Kode Provinsi ke Wilayah Utama BRIN
  * (Sumatera, Jawa, Kalimantan, Sulawesi, Nusa Tenggara, Maluku & Papua)
  */
 export function mapProvinceToWilayah(provinceName = '') {
@@ -95,17 +98,20 @@ export function mapProvinceToWilayah(provinceName = '') {
 }
 
 /**
- * Mengubah nama resmi ALL-CAPS (cth: "KABUPATEN BOGOR", "KOTA BANDUNG")
+ * Mengubah nama resmi ALL-CAPS / Title Case (cth: "KABUPATEN BOGOR", "Kota Bandung")
  * menjadi format rapi ("Kab. Bogor", "Kota Bandung")
  */
 export function formatCityName(name = '') {
   if (!name) return ''
   return name
-    .toLowerCase()
     .replace(/\bkabupaten\b/gi, 'Kab.')
     .replace(/\bkota\b/gi, 'Kota')
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map(word => {
+      // Keep acronyms like DKI, DIY, IKN if needed, otherwise titlecase
+      if (word.startsWith('Kab.') || word === 'Kota') return word
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    })
     .join(' ')
 }
 
@@ -120,4 +126,3 @@ export function formatProvinceName(name = '') {
     })
     .join(' ')
 }
-
