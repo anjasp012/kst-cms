@@ -1,22 +1,34 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader } from '@googlemaps/js-api-loader'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { MapPin, Navigation, Search, AlertCircle, Loader2 } from 'lucide-react'
+import { MapPin, Navigation, Search, Loader2 } from 'lucide-react'
 
-// Singleton Google Maps Loader instance
-let googleLoaderInstance = null
-function getGoogleLoader() {
-  if (!googleLoaderInstance) {
-    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
-    googleLoaderInstance = new Loader({
-      apiKey,
-      version: 'weekly',
-      libraries: ['places']
-    })
-  }
-  return googleLoaderInstance
+// Custom sleek marker SVG icon (no missing asset issues)
+const createMarkerIcon = () => {
+  return L.divIcon({
+    className: 'custom-leaflet-marker',
+    html: `
+      <div style="
+        position: relative;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: translate(-16px, -32px);
+      ">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="#09090b" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.35));">
+          <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+          <circle cx="12" cy="10" r="3" fill="#ffffff"/>
+        </svg>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+  })
 }
 
 export default function CoordinatePicker({
@@ -29,12 +41,11 @@ export default function CoordinatePicker({
   const mapContainerRef = useRef(null)
   const mapInstanceRef = useRef(null)
   const markerRef = useRef(null)
-  const searchInputRef = useRef(null)
-  const autocompleteRef = useRef(null)
 
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(null)
-  const [hasApiKey, setHasApiKey] = useState(Boolean(import.meta.env.VITE_GOOGLE_MAPS_API_KEY))
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [searchResults, setSearchResults] = useState([])
+  const [showDropdown, setShowDropdown] = useState(false)
 
   const currentLat = latitude !== '' && latitude !== null && !isNaN(Number(latitude))
     ? Number(latitude)
@@ -44,121 +55,68 @@ export default function CoordinatePicker({
     ? Number(longitude)
     : defaultLng
 
-  // Initialize Google Maps
+  // Initialize Map
   useEffect(() => {
-    let isMounted = true
+    if (!mapContainerRef.current) return
 
-    const initMap = async () => {
-      try {
-        setLoading(true)
-        setLoadError(null)
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        center: [currentLat, currentLng],
+        zoom: 13,
+        zoomControl: true,
+      })
 
-        const loader = getGoogleLoader()
-        const google = await loader.load()
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map)
 
-        if (!isMounted || !mapContainerRef.current) return
+      const marker = L.marker([currentLat, currentLng], {
+        draggable: true,
+        icon: createMarkerIcon(),
+      }).addTo(map)
 
-        const initialPos = { lat: currentLat, lng: currentLng }
+      // When marker is dragged
+      marker.on('dragend', (e) => {
+        const position = e.target.getLatLng()
+        onChange(Number(position.lat.toFixed(6)), Number(position.lng.toFixed(6)))
+      })
 
-        // Create Map
-        const map = new google.maps.Map(mapContainerRef.current, {
-          center: initialPos,
-          zoom: 13,
-          mapTypeControl: true,
-          mapTypeControlOptions: {
-            style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-            position: google.maps.ControlPosition.TOP_RIGHT,
-          },
-          streetViewControl: false,
-          fullscreenControl: false,
-          zoomControl: true,
-        })
+      // When user clicks anywhere on map
+      map.on('click', (e) => {
+        const { lat, lng } = e.latlng
+        marker.setLatLng([lat, lng])
+        onChange(Number(lat.toFixed(6)), Number(lng.toFixed(6)))
+      })
 
-        // Create Marker
-        const marker = new google.maps.Marker({
-          position: initialPos,
-          map: map,
-          draggable: true,
-          animation: google.maps.Animation.DROP,
-          title: 'Geser pin untuk ubah koordinat',
-        })
+      mapInstanceRef.current = map
+      markerRef.current = marker
 
-        // Event: Marker Drag End
-        marker.addListener('dragend', (e) => {
-          const lat = Number(e.latLng.lat().toFixed(6))
-          const lng = Number(e.latLng.lng().toFixed(6))
-          onChange(lat, lng)
-        })
-
-        // Event: Click on Map
-        map.addListener('click', (e) => {
-          const lat = Number(e.latLng.lat().toFixed(6))
-          const lng = Number(e.latLng.lng().toFixed(6))
-          marker.setPosition({ lat, lng })
-          onChange(lat, lng)
-        })
-
-        // Initialize Places Autocomplete if search input is available
-        if (searchInputRef.current && google.maps.places) {
-          const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
-            fields: ['geometry', 'name', 'formatted_address'],
-            componentRestrictions: { country: 'id' }, // prioritize Indonesia
-          })
-
-          autocomplete.addListener('place_changed', () => {
-            const place = autocomplete.getPlace()
-            if (place.geometry && place.geometry.location) {
-              const lat = Number(place.geometry.location.lat().toFixed(6))
-              const lng = Number(place.geometry.location.lng().toFixed(6))
-              map.setCenter({ lat, lng })
-              map.setZoom(15)
-              marker.setPosition({ lat, lng })
-              onChange(lat, lng)
-            }
-          })
-
-          autocompleteRef.current = autocomplete
-        }
-
-        mapInstanceRef.current = map
-        markerRef.current = marker
-        setLoading(false)
-      } catch (err) {
-        if (!isMounted) return
-        console.error('Failed to load Google Maps:', err)
-        setLoadError(err.message || 'Gagal memuat Google Maps')
-        setLoading(false)
-      }
+      // Invalidate size after modal render animation
+      setTimeout(() => {
+        map.invalidateSize()
+      }, 250)
     }
 
-    initMap()
-
     return () => {
-      isMounted = false
-      if (markerRef.current) {
-        markerRef.current.setMap(null)
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+        markerRef.current = null
       }
-      mapInstanceRef.current = null
-      markerRef.current = null
     }
   }, [])
 
   // Sync marker and map when latitude or longitude props change externally (e.g. typing manual)
   useEffect(() => {
     if (mapInstanceRef.current && markerRef.current) {
-      const markerPos = markerRef.current.getPosition()
-      if (markerPos) {
-        const markerLat = markerPos.lat()
-        const markerLng = markerPos.lng()
-
-        if (
-          Math.abs(markerLat - currentLat) > 0.00001 ||
-          Math.abs(markerLng - currentLng) > 0.00001
-        ) {
-          const newPos = { lat: currentLat, lng: currentLng }
-          markerRef.current.setPosition(newPos)
-          mapInstanceRef.current.panTo(newPos)
-        }
+      const markerLatLng = markerRef.current.getLatLng()
+      if (
+        Math.abs(markerLatLng.lat - currentLat) > 0.00001 ||
+        Math.abs(markerLatLng.lng - currentLng) > 0.00001
+      ) {
+        markerRef.current.setLatLng([currentLat, currentLng])
+        mapInstanceRef.current.panTo([currentLat, currentLng], { animate: true })
       }
     }
   }, [currentLat, currentLng])
@@ -181,17 +139,51 @@ export default function CoordinatePicker({
           const lng = Number(pos.coords.longitude.toFixed(6))
           onChange(lat, lng)
           if (mapInstanceRef.current && markerRef.current) {
-            const newPos = { lat, lng }
-            markerRef.current.setPosition(newPos)
-            mapInstanceRef.current.setCenter(newPos)
-            mapInstanceRef.current.setZoom(16)
+            markerRef.current.setLatLng([lat, lng])
+            mapInstanceRef.current.setView([lat, lng], 15)
           }
         },
         () => {
-          // Geolocation permission denied or failed
+          // Geolocation permission denied or unavailable
         }
       )
     }
+  }
+
+  // Free OpenStreetMap Nominatim Place Search
+  const handleSearch = async (e) => {
+    if (e) e.preventDefault()
+    if (!searchQuery.trim()) return
+
+    setSearching(true)
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          searchQuery
+        )}&countrycodes=id&limit=5`
+      )
+      const data = await res.json()
+      setSearchResults(data)
+      setShowDropdown(true)
+    } catch (err) {
+      console.error('Nominatim search error:', err)
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const handleSelectPlace = (place) => {
+    const lat = Number(parseFloat(place.lat).toFixed(6))
+    const lng = Number(parseFloat(place.lon).toFixed(6))
+    onChange(lat, lng)
+
+    if (mapInstanceRef.current && markerRef.current) {
+      markerRef.current.setLatLng([lat, lng])
+      mapInstanceRef.current.setView([lat, lng], 15)
+    }
+
+    setShowDropdown(false)
+    setSearchQuery(place.display_name.split(',')[0])
   }
 
   return (
@@ -200,7 +192,7 @@ export default function CoordinatePicker({
       <div className="flex items-center justify-between">
         <Label className="text-xs font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-zinc-500" />
-          <span>Google Maps & Koordinat Spasial</span>
+          <span>Peta OpenStreetMap & Koordinat Spasial</span>
         </Label>
 
         <button
@@ -214,15 +206,45 @@ export default function CoordinatePicker({
         </button>
       </div>
 
-      {/* Google Places Search Box */}
+      {/* Free Search Box (Nominatim OpenStreetMap) */}
       <div className="relative">
-        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
-        <Input
-          ref={searchInputRef}
-          type="text"
-          placeholder="Cari lokasi / alamat di Google Maps (misal: Cibinong Science Center, Bandung)..."
-          className="pl-8 h-8 text-xs bg-white dark:bg-zinc-900"
-        />
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+            <Input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari lokasi / alamat (misal: Cibinong, Bandung, Medan)..."
+              className="pl-8 h-8 text-xs bg-white dark:bg-zinc-900"
+            />
+          </div>
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={searching}
+            className="h-8 text-xs px-3"
+          >
+            {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Cari'}
+          </Button>
+        </form>
+
+        {/* Dropdown Hasil Pencarian */}
+        {showDropdown && searchResults.length > 0 && (
+          <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg shadow-lg z-[500] max-h-48 overflow-y-auto divide-y divide-zinc-100 dark:divide-zinc-800">
+            {searchResults.map((item) => (
+              <button
+                key={item.place_id}
+                type="button"
+                onClick={() => handleSelectPlace(item)}
+                className="w-full text-left p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-xs text-zinc-700 dark:text-zinc-300 transition-colors flex items-start gap-2"
+              >
+                <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
+                <span className="line-clamp-2">{item.display_name}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Manual Inputs Row (Two-Way Sync) */}
@@ -251,42 +273,17 @@ export default function CoordinatePicker({
         </div>
       </div>
 
-      {/* Interactive Google Map Canvas */}
+      {/* Interactive Map Canvas */}
       <div className="space-y-1">
         <div className="relative w-full h-56 rounded-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-          {loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900 z-10">
-              <Loader2 className="w-5 h-5 animate-spin text-zinc-500 mb-1.5" />
-              <span className="text-xs text-zinc-500 font-mono">Memuat Google Maps...</span>
-            </div>
-          )}
-
-          {loadError && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-900 z-10 text-center">
-              <AlertCircle className="w-5 h-5 text-amber-500 mb-1.5" />
-              <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                Google Maps Memerlukan API Key
-              </div>
-              <p className="text-[11px] text-zinc-500 mt-1 max-w-sm">
-                Tambahkan <code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded font-mono">VITE_GOOGLE_MAPS_API_KEY</code> di file <code className="font-mono">.env</code>.
-              </p>
-            </div>
-          )}
-
-          <div ref={mapContainerRef} className="w-full h-full" />
+          <div ref={mapContainerRef} className="w-full h-full z-0" />
 
           {/* Hint Overlay */}
-          <div className="absolute bottom-2 left-2 z-10 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-mono text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 shadow-sm pointer-events-none">
-            Klik peta atau geser pin merah untuk set koordinat
+          <div className="absolute bottom-2 left-2 z-[400] bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm px-2 py-1 rounded text-[10px] font-mono text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 shadow-sm pointer-events-none">
+            Klik peta atau geser pin untuk set koordinat
           </div>
         </div>
       </div>
-
-      {!hasApiKey && (
-        <div className="text-[11px] text-zinc-400 font-mono flex items-center justify-between px-1">
-          <span>* Mode Google Maps aktif. Masukkan VITE_GOOGLE_MAPS_API_KEY di .env untuk menghapus watermark dev.</span>
-        </div>
-      )}
     </div>
   )
 }
