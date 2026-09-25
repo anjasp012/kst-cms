@@ -1,4 +1,5 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1';
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1';
+export const SWAGGER_URL = API_BASE.replace(/\/api\/v1\/?$/, '') + '/docs';
 
 export function getJwt() {
   return localStorage.getItem('kst_jwt');
@@ -20,6 +21,11 @@ export function clearTokens() {
   localStorage.removeItem('kst_username');
 }
 
+function forceLogout() {
+  clearTokens();
+  window.location.href = '/';
+}
+
 function authHeaders() {
   const jwt = getJwt();
   return {
@@ -28,7 +34,7 @@ function authHeaders() {
   };
 }
 
-async function request(url, options = {}) {
+export async function request(url, options = {}) {
   let res = await fetch(url, {
     ...options,
     headers: {
@@ -59,14 +65,18 @@ async function request(url, options = {}) {
           },
         });
       } else {
-        clearTokens();
+        forceLogout();
       }
     } catch (e) {
-      clearTokens();
+      forceLogout();
     }
   }
 
   if (!res.ok) {
+    if (res.status === 401) {
+      forceLogout();
+      throw new Error('Sesi telah berakhir, silakan login kembali.');
+    }
     let errorDetail = 'Permintaan gagal';
     try {
       const errJson = await res.json();
@@ -329,6 +339,7 @@ export async function deleteDampak(id) {
   });
 }
 
+
 // Backward-compatible router helper
 export async function fetchCategoriesList(tipe, includeInactive = true) {
   if (tipe === 'tipe_fasilitas') return fetchFacilities(includeInactive);
@@ -360,11 +371,8 @@ export async function deleteCategory(id, tipe) {
 
 
 // 🇮🇩 6. MASTER WILAYAH & PROVINSI
-export async function fetchProvinces(wilayah) {
-  const query = new URLSearchParams();
-  if (wilayah) query.append('wilayah', wilayah);
-  const qs = query.toString() ? `?${query.toString()}` : '';
-  return request(`${API_BASE}/kst/wilayah/provinces${qs}`);
+export async function fetchProvinces() {
+  return request(`${API_BASE}/kst/wilayah/provinces`);
 }
 
 export async function createProvince(payload) {
@@ -393,5 +401,25 @@ export async function fetchRegencies(provinceKode, q) {
   if (q) query.append('q', q);
   const qs = query.toString() ? `?${query.toString()}` : '';
   return request(`${API_BASE}/kst/wilayah/regencies${qs}`);
+}
+
+export async function createRegency(payload) {
+  return request(`${API_BASE}/kst/wilayah/regencies`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateRegency(kode, payload) {
+  return request(`${API_BASE}/kst/wilayah/regencies/${kode}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteRegency(kode) {
+  return request(`${API_BASE}/kst/wilayah/regencies/${kode}`, {
+    method: 'DELETE',
+  });
 }
 

@@ -32,6 +32,7 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
+  Globe2,
 } from 'lucide-react'
 import {
   fetchCategoriesList,
@@ -249,22 +250,16 @@ export default function CategoryManagementView({
   return (
     <div className="space-y-6">
       {/* Description & Search / Action Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-zinc-900/60 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className={`p-1.5 rounded-md ${config.badgeClass}`}>
-              <Icon className="w-4 h-4" />
-            </div>
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Daftar Master {config.label}
-            </h2>
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center">
+              Master Data &mdash; {config.label}
+            </h1>
             <Badge variant="outline" className="text-[11px] font-mono">
               {filteredItems.length} Data
             </Badge>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-2xl">
-            {config.description}
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5">

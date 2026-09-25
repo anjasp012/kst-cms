@@ -3,26 +3,23 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import KSTManagementView from './KSTManagementView'
 import KSTFormPage from './KSTFormPage'
-import PartnersView from './PartnersView'
 import CategoryManagementView from './CategoryManagementView'
+import WilayahManagementView from './WilayahManagementView'
 import {
   fetchKSTLocations,
   createKST,
   updateKST,
   deleteKST,
-  fetchRegionalPartners,
-  createRegionalPartner,
-  updateRegionalPartner,
-  deleteRegionalPartner,
-  fetchKSTCategories,
+    fetchKSTCategories,
   fetchDampak,
   fetchCollaborations,
+  fetchProvinces,
+  SWAGGER_URL,
 } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
 import { Toaster, toast } from 'sonner'
 import {
   Building2,
-  MapPin,
   LogOut,
   Sun,
   Moon,
@@ -33,6 +30,9 @@ import {
   Cpu,
   Handshake,
   Award,
+  Globe2,
+  BookOpen,
+  ExternalLink,
 } from 'lucide-react'
 
 export default function Dashboard({ username, onLogout }) {
@@ -42,12 +42,12 @@ export default function Dashboard({ username, onLogout }) {
   // Derive currentView from URL path
   const currentView = useMemo(() => {
     const path = location.pathname.replace(/^\//, '')
-    if (path === 'partners') return 'partners'
     if (path === 'kst/new' || path.startsWith('kst/edit')) return 'kst-form'
     if (path === 'tema-riset') return 'tema-riset'
     if (path === 'tipe-fasilitas' || path === 'fasilitas') return 'tipe-fasilitas'
     if (path === 'dampak') return 'dampak'
     if (path === 'kolaborasi' || path === 'potensi-kolaborasi') return 'kolaborasi'
+    if (path === 'wilayah') return 'wilayah'
     return 'kst'
   }, [location.pathname])
 
@@ -56,7 +56,6 @@ export default function Dashboard({ username, onLogout }) {
   }, [navigate])
 
   const [kstLocations, setKstLocations] = useState([])
-  const [partners, setPartners] = useState([])
   const [categoriesData, setCategoriesData] = useState({
     tema_riset: [],
     tipe_fasilitas: [],
@@ -64,6 +63,7 @@ export default function Dashboard({ username, onLogout }) {
   })
   const [dampakCount, setDampakCount] = useState(5)
   const [collabCount, setCollabCount] = useState(4)
+  const [wilayahCount, setWilayahCount] = useState(38)
 
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -74,12 +74,12 @@ export default function Dashboard({ username, onLogout }) {
   const viewTitles = {
     kst: 'Kawasan Sains dan Teknologi (KST) BRIN',
     'kst-form': 'Form Kawasan Sains dan Teknologi',
-    partners: 'Direktori Mitra Riset Daerah (BRIDA / BAPPERIDA / BAPPEDA)',
     'tema-riset': 'Master Data — Tema Riset',
     'tipe-fasilitas': 'Master Data — Fasilitas',
     dampak: 'Master Data — Dampak',
     kolaborasi: 'Master Data — Kolaborasi',
     'potensi-kolaborasi': 'Master Data — Kolaborasi',
+    wilayah: 'Master Data — Wilayah (Provinsi & Kab/Kota)',
   }
 
   const loadData = useCallback(async (isManualRefresh = false) => {
@@ -89,9 +89,8 @@ export default function Dashboard({ username, onLogout }) {
     if (isManualRefresh) setLoading(true)
 
     try {
-      const [kstRes, partnersRes, catRes, dampakRes, collabRes] = await Promise.all([
+      const [kstRes, catRes, dampakRes, collabRes, provRes] = await Promise.all([
         fetchKSTLocations().catch(() => []),
-        fetchRegionalPartners().catch(() => []),
         fetchKSTCategories(true).catch(() => ({
           tema_riset: [],
           tipe_fasilitas: [],
@@ -99,11 +98,11 @@ export default function Dashboard({ username, onLogout }) {
         })),
         fetchDampak().catch(() => []),
         fetchCollaborations().catch(() => []),
+        fetchProvinces().catch(() => []),
       ])
 
       if (Array.isArray(kstRes)) setKstLocations(kstRes)
-      if (Array.isArray(partnersRes)) setPartners(partnersRes)
-      if (catRes) {
+            if (catRes) {
         setCategoriesData({
           tema_riset: catRes.tema_riset || [],
           tipe_fasilitas: catRes.tipe_fasilitas || [],
@@ -112,6 +111,7 @@ export default function Dashboard({ username, onLogout }) {
       }
       if (Array.isArray(dampakRes)) setDampakCount(dampakRes.length)
       if (Array.isArray(collabRes)) setCollabCount(collabRes.length)
+      if (Array.isArray(provRes)) setWilayahCount(provRes.length)
 
       if (isManualRefresh) {
         toast.success('Data berhasil diperbarui')
@@ -168,15 +168,9 @@ export default function Dashboard({ username, onLogout }) {
       items: [
         {
           id: 'kst',
-          label: 'Kawasan Sains (KST)',
+          label: 'Kawasan Sains & Mitra',
           icon: Building2,
           count: kstLocations.length,
-        },
-        {
-          id: 'partners',
-          label: 'Mitra Daerah (BRIDA)',
-          icon: MapPin,
-          count: partners.length,
         },
       ],
     },
@@ -206,6 +200,12 @@ export default function Dashboard({ username, onLogout }) {
           label: 'Kolaborasi',
           icon: Handshake,
           count: collabCount,
+        },
+        {
+          id: 'wilayah',
+          label: 'Wilayah',
+          icon: Globe2,
+          count: wilayahCount,
         },
       ],
     },
@@ -335,6 +335,18 @@ export default function Dashboard({ username, onLogout }) {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Direct Swagger API Docs Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open(SWAGGER_URL, '_blank')}
+              className="h-9 text-xs font-medium border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300"
+            >
+              <BookOpen className="w-3.5 h-3.5 mr-1.5 text-zinc-500 dark:text-zinc-400" />
+              API Docs
+              <ExternalLink className="w-3.5 h-3.5 ml-1.5 text-zinc-400 dark:text-zinc-500" />
+            </Button>
+
             {/* Theme Toggle Button */}
             <Button
               variant="outline"
@@ -350,7 +362,7 @@ export default function Dashboard({ username, onLogout }) {
 
         {/* View Router Render */}
         <div className="p-5 sm:p-8 space-y-6 flex-1">
-          {/* 1. KST Management (Primary) */}
+          {/* 1. KST Management (Primary) — includes Mitra tab inside */}
           {currentView === 'kst' && (
             <KSTManagementView
               locations={kstLocations}
@@ -358,6 +370,7 @@ export default function Dashboard({ username, onLogout }) {
               onCreate={handleCreateKST}
               onUpdate={handleUpdateKST}
               onDelete={handleDeleteKST}
+              
             />
           )}
 
@@ -368,18 +381,7 @@ export default function Dashboard({ username, onLogout }) {
             />
           )}
 
-          {/* 3. Regional Partners (BAPPEDA/BAPPERIDA/BRIDA) */}
-          {currentView === 'partners' && (
-            <PartnersView
-              partners={partners}
-              loading={loading}
-              onCreate={handleCreatePartner}
-              onUpdate={handleUpdatePartner}
-              onDelete={handleDeletePartner}
-            />
-          )}
-
-          {/* 4. Master Data: Tema Riset */}
+          {/* 3. Master Data: Tema Riset */}
           {currentView === 'tema-riset' && (
             <CategoryManagementView
               activeType="tema_riset"
@@ -424,6 +426,13 @@ export default function Dashboard({ username, onLogout }) {
             <CategoryManagementView
               activeType="potensi_kolaborasi"
               onCategoriesChanged={() => loadData()}
+            />
+          )}
+
+          {/* 8. Master Data: Wilayah (Provinsi & Kabupaten/Kota) */}
+          {currentView === 'wilayah' && (
+            <WilayahManagementView
+              onWilayahChanged={() => loadData()}
             />
           )}
         </div>

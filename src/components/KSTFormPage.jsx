@@ -1,5 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,7 +36,7 @@ import {
   Map,
   FileText
 } from 'lucide-react'
-import { 
+import { request, API_BASE, 
   uploadFile, 
   fetchKSTDetail, 
   createKST, 
@@ -53,16 +63,23 @@ import { toast } from 'sonner'
 
 export default function KSTFormPage({ onSaveSuccess }) {
   const navigate = useNavigate()
-  const { id } = useParams()
+  const location = useLocation()
+  const match = location.pathname.match(/\/kst\/edit\/([^/]+)/);
+  const id = match ? match[1] : null;
   const isEdit = Boolean(id)
 
   const [loadingInitial, setLoadingInitial] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [activeTab, setActiveTab] = useState('spasial')
+  const [missingFields, setMissingFields] = useState([])
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false)
+  const [pendingPayload, setPendingPayload] = useState(null)
+
 
   // API Wilayah Indonesia State
   const [provinces, setProvinces] = useState([])
+  const [instansiList, setInstansiList] = useState([])
   const [regencies, setRegencies] = useState([])
   const [selectedProvinceId, setSelectedProvinceId] = useState('')
   const [selectedRegencyId, setSelectedRegencyId] = useState('')
@@ -100,18 +117,18 @@ export default function KSTFormPage({ onSaveSuccess }) {
     slug: '',
     wilayah: 'Jawa',
     kota_provinsi: '',
-    pengelola: 'BRIN',
-    status: 'Aktif',
-    tahun_operasi: 2021,
+    pengelola: '',
+    status: '',
+    tahun_operasi: '',
     thumbnail_url: '',
-    latitude: -6.917464,
-    longitude: 107.619122,
+    latitude: '',
+    longitude: '',
 
     // 1. Profil
     deskripsi_profil: '',
     peran_kawasan: '',
-    fokus_utama: ['Pangan & Pertanian', 'Energi & Material', 'Teknologi Digital'],
-    terhubung_dengan: 'Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan.',
+    fokus_utama: [],
+    terhubung_dengan: '',
 
     // 2. Fasilitas (Murni dinamis via tombol +)
     fasilitas: [],
@@ -124,12 +141,12 @@ export default function KSTFormPage({ onSaveSuccess }) {
     // 4. Dampak (Murni dinamis via tombol +)
     dampak: [],
     highlight_fasilitas: 0,
-    highlight_bidang_riset: 0,
+    highlight_tema_riset: 0,
     highlight_program_kolaborasi: 0,
     highlight_mitra: 0,
 
     // 5. Kolaborasi
-    potensi_kolaborasi: ['Industri', 'Akademisi', 'Pemerintah', 'Komunitas'],
+    potensi_kolaborasi: [],
     daftar_kolaborasi: [],
 
     // 6. Galeri Foto
@@ -167,9 +184,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
     })
 
     const loadProvinces = async () => {
-      const data = await fetchProvinces()
-      if (isMounted && Array.isArray(data)) {
-        setProvinces(data)
+      const [provs, instansis] = await Promise.all([
+        fetchProvinces(),
+        request(`${API_BASE}/kst/instansi`).catch(() => [])
+      ])
+      if (isMounted) {
+        if (Array.isArray(provs)) setProvinces(provs)
+        if (Array.isArray(instansis)) setInstansiList(instansis)
       }
     }
     loadProvinces()
@@ -271,7 +292,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
   }
 
   // When Regency Changes, auto-format kota_provinsi
-  const handleRegencyChange = (regId) => {
+  const handleRegencyChange = async (regId) => {
     setSelectedRegencyId(regId)
     if (!regId) return
 
@@ -286,6 +307,24 @@ export default function KSTFormPage({ onSaveSuccess }) {
         ...prev,
         kota_provinsi: formatted
       }))
+
+      // Auto-fetch coordinates from Nominatim
+      try {
+        const query = encodeURIComponent(`${regName}, ${provName}, Indonesia`)
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=1`)
+        const data = await res.json()
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat)
+          const lon = parseFloat(data[0].lon)
+          setFormData(prev => ({
+            ...prev,
+            latitude: Number(lat.toFixed(6)),
+            longitude: Number(lon.toFixed(6))
+          }))
+        }
+      } catch (err) {
+        console.error('Failed to auto-fetch coordinates for city', err)
+      }
     }
   }
 
@@ -314,8 +353,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
           deskripsi_profil: item.deskripsi_profil || '',
           peran_kawasan: item.peran_kawasan || '',
-          fokus_utama: Array.isArray(item.fokus_utama) ? item.fokus_utama : [],
-          terhubung_dengan: item.terhubung_dengan || 'Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan.',
+            terhubung_dengan: item.terhubung_dengan || 'Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan.',
 
           fasilitas: Array.isArray(item.fasilitas) ? item.fasilitas : [],
           riset: Array.isArray(item.riset) ? item.riset : [],
@@ -324,7 +362,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
           dampak: Array.isArray(item.dampak) ? item.dampak : [],
           highlight_fasilitas: item.highlight_fasilitas || (item.fasilitas?.length || 0),
-          highlight_bidang_riset: item.highlight_bidang_riset || (item.riset?.length || 0),
+          highlight_tema_riset: item.highlight_tema_riset || (item.riset?.length || 0),
           highlight_program_kolaborasi: item.highlight_program_kolaborasi || (item.daftar_kolaborasi?.length || 0),
           highlight_mitra: item.highlight_mitra || 0,
 
@@ -436,7 +474,6 @@ export default function KSTFormPage({ onSaveSuccess }) {
       ],
       highlight_fasilitas: prev.fasilitas.length + 1
     }))
-    toast.success(`Fasilitas "${fac.nama}" ditambahkan ke formulir`)
   }
 
   const handleCreateInlineFacility = async () => {
@@ -479,11 +516,11 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
   // Research handlers (+ Button)
   const addResearch = () => {
-    const defaultBidang = categories.tema_riset?.[0] || 'Energi & Material'
+    const defaultTema = categories.tema_riset?.[0] || 'Energi & Material'
     setFormData(prev => ({
       ...prev,
-      riset: [...prev.riset, { judul: '', bidang: defaultBidang, deskripsi: '' }],
-      highlight_bidang_riset: prev.riset.length + 1
+      riset: [...prev.riset, { judul: '', tema: defaultTema, deskripsi: '' }],
+      highlight_tema_riset: prev.riset.length + 1
     }))
   }
 
@@ -494,13 +531,12 @@ export default function KSTFormPage({ onSaveSuccess }) {
         ...prev.riset,
         {
           judul: `Riset ${theme.nama}`,
-          bidang: theme.nama,
+          tema: theme.nama,
           deskripsi: theme.deskripsi || ''
         }
       ],
-      highlight_bidang_riset: prev.riset.length + 1
+      highlight_tema_riset: prev.riset.length + 1
     }))
-    toast.success(`Bidang riset "${theme.nama}" ditambahkan ke formulir`)
   }
 
   const handleCreateInlineThemeResearch = async () => {
@@ -537,7 +573,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
     setFormData(prev => ({
       ...prev,
       riset: prev.riset.filter((_, i) => i !== index),
-      highlight_bidang_riset: Math.max(0, prev.riset.length - 1)
+      highlight_tema_riset: Math.max(0, prev.riset.length - 1)
     }))
   }
 
@@ -560,7 +596,6 @@ export default function KSTFormPage({ onSaveSuccess }) {
         }
       ]
     }))
-    toast.success(`Pilar dampak "${dampak.nama}" ditambahkan ke formulir`)
   }
 
   const handleCreateInlineDampak = async () => {
@@ -622,43 +657,9 @@ export default function KSTFormPage({ onSaveSuccess }) {
     }))
   }
 
-  // Submit Handler
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    if (!formData.nama.trim() || !formData.slug.trim()) {
-      toast.error('Nama dan Slug KST wajib diisi')
-      return
-    }
-
+  const executeSave = async (payload) => {
     setSaving(true)
     try {
-      const payload = {
-        nama: formData.nama.trim(),
-        slug: formData.slug.trim(),
-        wilayah: formData.wilayah,
-        kota_provinsi: formData.kota_provinsi.trim(),
-        pengelola: formData.pengelola.trim() || 'BRIN',
-        status: formData.status,
-        tahun_operasi: parseInt(formData.tahun_operasi, 10) || 2021,
-        thumbnail_url: formData.thumbnail_url.trim() || null,
-        latitude: formData.latitude !== '' ? parseFloat(formData.latitude) : null,
-        longitude: formData.longitude !== '' ? parseFloat(formData.longitude) : null,
-
-        deskripsi_profil: formData.deskripsi_profil.trim() || null,
-        peran_kawasan: formData.peran_kawasan.trim() || null,
-        fokus_utama: Array.isArray(formData.fokus_utama) ? formData.fokus_utama : [],
-        terhubung_dengan: formData.terhubung_dengan.trim() || null,
-
-        fasilitas: formData.fasilitas.filter(f => f.nama.trim()),
-        riset: formData.riset.filter(r => r.judul.trim()),
-        dampak: formData.dampak.filter(d => d.judul.trim()),
-        potensi_kolaborasi: Array.isArray(formData.potensi_kolaborasi) ? formData.potensi_kolaborasi : [],
-        daftar_kolaborasi: formData.daftar_kolaborasi.filter(d => d.mitra.trim()),
-        galeri: formData.galeri,
-        is_active: formData.is_active
-      }
-
       if (isEdit) {
         await updateKST(id, payload)
         toast.success('Data KST berhasil diperbarui')
@@ -666,7 +667,6 @@ export default function KSTFormPage({ onSaveSuccess }) {
         await createKST(payload)
         toast.success('KST baru berhasil ditambahkan')
       }
-
       if (onSaveSuccess) onSaveSuccess()
       navigate('/kst')
     } catch (err) {
@@ -676,11 +676,87 @@ export default function KSTFormPage({ onSaveSuccess }) {
     }
   }
 
+  // Submit Handler
+  const handleSubmit = async (e, asDraft = false) => {
+    if (e) e.preventDefault()
+
+    if (!formData.nama.trim()) {
+      toast.error('Nama KST wajib diisi')
+      return
+    }
+    if (!formData.slug.trim()) {
+      toast.error('Slug URL wajib diisi')
+      return
+    }
+    if (!formData.instansi_nama || !formData.instansi_nama.trim()) {
+      toast.error('Jenis Instansi wajib diisi')
+      return
+    }
+    if (!formData.kota_provinsi || !formData.kota_provinsi.trim()) {
+      toast.error('Wilayah (Kota/Kabupaten) wajib diisi')
+      return
+    }
+
+    const payload = {
+      nama: formData.nama.trim(),
+      slug: formData.slug.trim(),
+      instansi_nama: formData.instansi_nama,
+      telepon: formData.telepon,
+      website: formData.website,
+      email: formData.email,
+      alamat: formData.alamat,
+      wilayah: formData.wilayah,
+      kota_provinsi: formData.kota_provinsi ? formData.kota_provinsi.trim() : '',
+      pengelola: formData.pengelola ? formData.pengelola.trim() : null,
+      status: asDraft ? 'Draft' : (formData.status || null),
+      tahun_operasi: formData.tahun_operasi ? parseInt(formData.tahun_operasi, 10) : null,
+      thumbnail_url: formData.thumbnail_url,
+      latitude: formData.latitude !== '' ? Number(formData.latitude) : null,
+      longitude: formData.longitude !== '' ? Number(formData.longitude) : null,
+
+      deskripsi_profil: formData.deskripsi_profil.trim() || null,
+      peran_kawasan: formData.peran_kawasan.trim() || null,
+      fokus_utama: (formData.riset && formData.riset.length > 0)
+        ? Array.from(new Set(formData.riset.map(r => r.tema).filter(Boolean)))
+        : (Array.isArray(formData.fokus_utama) ? formData.fokus_utama : []),
+      terhubung_dengan: formData.terhubung_dengan ? formData.terhubung_dengan.trim() : null,
+
+      fasilitas: formData.fasilitas.filter(f => f.nama.trim()),
+      riset: formData.riset.filter(r => r.judul.trim()),
+      potensi_kolaborasi: Array.from(new Set([
+        ...(Array.isArray(formData.potensi_kolaborasi) ? formData.potensi_kolaborasi : []),
+        ...formData.daftar_kolaborasi.map(d => d.tipe).filter(Boolean)
+      ])),
+      daftar_kolaborasi: formData.daftar_kolaborasi.filter(d => d.mitra.trim()),
+      galeri: formData.galeri,
+      is_active: formData.is_active
+    }
+
+    // Check empty optional fields
+    const emptyFields = []
+    if (!payload.pengelola) emptyFields.push('Pengelola')
+    if (payload.status !== 'Draft' && !payload.status) emptyFields.push('Status')
+    if (!payload.tahun_operasi) emptyFields.push('Tahun Operasi')
+    if (payload.latitude === null || payload.longitude === null) emptyFields.push('Titik Koordinat')
+    if (!payload.deskripsi_profil) emptyFields.push('Profil Kawasan')
+    
+    if (emptyFields.length > 0) {
+      setMissingFields(emptyFields)
+      setPendingPayload(payload)
+      setConfirmModalOpen(true)
+      return
+    }
+
+    executeSave(payload)
+  }
+
+
+
   const tabsConfig = [
     { id: 'spasial', label: 'Spasial & Wilayah', icon: Compass },
     { id: 'profil', label: 'Profil Kawasan', icon: Building2 },
     { id: 'fasilitas', label: 'Fasilitas Riset', icon: FlaskConical, badge: formData.fasilitas.length },
-    { id: 'riset', label: 'Bidang Riset', icon: Sparkles, badge: formData.riset.length },
+    { id: 'riset', label: 'Tema Riset', icon: Sparkles, badge: formData.riset.length },
     { id: 'dampak', label: 'Dampak', icon: Award, badge: formData.dampak.length },
     { id: 'kolaborasi', label: 'Kolaborasi', icon: Users, badge: formData.daftar_kolaborasi.length },
     { id: 'galeri', label: 'Galeri Foto', icon: ImageIcon, badge: formData.galeri.length },
@@ -763,175 +839,10 @@ export default function KSTFormPage({ onSaveSuccess }) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
           <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Identitas, Wilayah Administratif & Titik Koordinat</h3>
-            <p className="text-xs text-zinc-500">Pilih wilayah resmi Indonesia (API Kemendagri) atau isi manual, lalu tentukan koordinat PostGIS.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Nama KST *</Label>
-              <Input
-                value={formData.nama}
-                onChange={handleNamaChange}
-                placeholder="KST Jawa Barat"
-                required
-                className="h-9 text-xs"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Slug URL *</Label>
-              <Input
-                value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                placeholder="kst-jawa-barat"
-                required
-                className="h-9 text-xs font-mono"
-              />
-            </div>
-
-            {/* INTEGRASI API WILAYAH INDONESIA */}
-            <div className="md:col-span-2 p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Map className="w-4 h-4 text-zinc-500" />
-                  <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
-                    Integrasi Wilayah Administratif Indonesia (API Resmi)
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setManualKotaInput(!manualKotaInput)}
-                  className="text-[11px] font-mono text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 underline"
-                >
-                  {manualKotaInput ? 'Gunakan Dropdown API Wilayah' : 'Input Manual Teks'}
-                </button>
-              </div>
-
-              {!manualKotaInput ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {/* Dropdown Provinsi */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-zinc-500">Pilih Provinsi</Label>
-                    <select
-                      value={selectedProvinceId}
-                      onChange={(e) => handleProvinceChange(e.target.value)}
-                      className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
-                    >
-                      <option value="">-- Pilih Provinsi (38 Provinsi) --</option>
-                      {provinces.map((prov) => {
-                        const val = prov.id || prov.kode
-                        const label = prov.nama || prov.name
-                        return (
-                          <option key={val} value={val}>
-                            {formatProvinceName(label)}
-                          </option>
-                        )
-                      })}
-                    </select>
-                  </div>
-
-                  {/* Dropdown Kota / Kabupaten */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-zinc-500">
-                      Pilih Kota / Kabupaten {loadingWilayah && '(Memuat...)'}
-                    </Label>
-                    <select
-                      value={selectedRegencyId}
-                      onChange={(e) => handleRegencyChange(e.target.value)}
-                      disabled={!selectedProvinceId || loadingWilayah}
-                      className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs disabled:opacity-50"
-                    >
-                      <option value="">-- Pilih Kota/Kabupaten --</option>
-                      {regencies.map((reg) => {
-                        const val = reg.id || reg.kode
-                        const label = reg.nama || reg.name
-                        return (
-                          <option key={val} value={val}>
-                            {formatCityName(label)}
-                          </option>
-                        )
-                      })}
-                    </select>
-                  </div>
-
-                  {/* Hasil Format Kota & Provinsi */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-zinc-500">Format Kota & Provinsi</Label>
-                    <Input
-                      value={formData.kota_provinsi}
-                      onChange={(e) => setFormData({ ...formData, kota_provinsi: e.target.value })}
-                      placeholder="Bandung, Jawa Barat"
-                      className="h-8 text-xs bg-white dark:bg-zinc-900 font-medium"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-zinc-500">Kota / Kabupaten & Provinsi (Input Manual)</Label>
-                  <Input
-                    value={formData.kota_provinsi}
-                    onChange={(e) => setFormData({ ...formData, kota_provinsi: e.target.value })}
-                    placeholder="Contoh: Bandung, Jawa Barat"
-                    className="h-8 text-xs bg-white dark:bg-zinc-900"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Wilayah Utama BRIN</Label>
-              <select
-                value={formData.wilayah}
-                onChange={(e) => setFormData({ ...formData, wilayah: e.target.value })}
-                className="w-full h-9 px-3 rounded-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100 font-semibold"
-              >
-                <option value="Sumatera">Sumatera</option>
-                <option value="Jawa">Jawa</option>
-                <option value="Kalimantan">Kalimantan</option>
-                <option value="Sulawesi">Sulawesi</option>
-                <option value="Nusa Tenggara">Nusa Tenggara</option>
-                <option value="Maluku & Papua">Maluku & Papua</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Pengelola Kawasan</Label>
-              <Input
-                value={formData.pengelola}
-                onChange={(e) => setFormData({ ...formData, pengelola: e.target.value })}
-                placeholder="BRIN"
-                className="h-9 text-xs"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Status</Label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full h-9 px-3 rounded-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100"
-                >
-                  <option value="Aktif">Aktif</option>
-                  <option value="Pengembangan">Pengembangan</option>
-                  <option value="Rencana">Rencana</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Tahun Operasi</Label>
-                <Input
-                  type="number"
-                  value={formData.tahun_operasi}
-                  onChange={(e) => setFormData({ ...formData, tahun_operasi: e.target.value })}
-                  className="h-9 text-xs font-mono"
-                />
-              </div>
-            </div>
           </div>
 
           {/* FOTO SAMPUL / THUMBNAIL */}
-          <div className="space-y-2 pt-2 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="space-y-2 pb-4 border-b border-zinc-200 dark:border-zinc-800">
             <Label className="text-xs font-medium">Foto Sampul Kawasan (Thumbnail)</Label>
             <div className="flex items-start gap-4">
               <div className="w-24 h-24 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0 flex items-center justify-center">
@@ -973,6 +884,215 @@ export default function KSTFormPage({ onSaveSuccess }) {
             </div>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Nama KST *</Label>
+              <Input
+                value={formData.nama}
+                onChange={handleNamaChange}
+                placeholder="KST Jawa Barat"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Slug URL *</Label>
+              <Input
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                placeholder="kst-jawa-barat"
+                className="h-9 text-xs font-mono"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Jenis Instansi *</Label>
+              <div className="relative">
+                <Input
+                  list="instansi-list"
+                  value={formData.instansi_nama || ''}
+                  onChange={(e) => setFormData({ ...formData, instansi_nama: e.target.value })}
+                  placeholder="Pilih dari daftar atau ketik nama instansi baru..."
+                  className="h-9 text-xs w-full bg-white dark:bg-zinc-950"
+                  autoComplete="off"
+                />
+                <datalist id="instansi-list">
+                  {instansiList.map((inst) => (
+                    <option key={inst.id} value={inst.nama} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Telepon</Label>
+              <Input
+                value={formData.telepon}
+                onChange={(e) => setFormData({ ...formData, telepon: e.target.value })}
+                placeholder="021-1234567"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Email</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="email@instansi.go.id"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Website</Label>
+              <Input
+                value={formData.website}
+                onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                placeholder="https://instansi.go.id"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs">Alamat Lengkap</Label>
+              <Input
+                value={formData.alamat}
+                onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
+                placeholder="Jl. Raya No. 123..."
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Pengelola Kawasan</Label>
+              <Input
+                value={formData.pengelola}
+                onChange={(e) => setFormData({ ...formData, pengelola: e.target.value })}
+                placeholder="BRIN"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Status</Label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full h-9 px-3 rounded-md bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-xs text-zinc-900 dark:text-zinc-100"
+                >
+                  <option value="Aktif">Aktif</option>
+                  <option value="Pengembangan">Pengembangan</option>
+                  <option value="Rencana">Rencana</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Tahun Operasi</Label>
+                <Input
+                  type="number"
+                  value={formData.tahun_operasi}
+                  onChange={(e) => setFormData({ ...formData, tahun_operasi: e.target.value })}
+                  className="h-9 text-xs font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* INTEGRASI API WILAYAH INDONESIA */}
+            <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Map className="w-4 h-4 text-zinc-500" />
+                <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                    Integrasi Wilayah Administratif Indonesia (API Resmi)
+                </span>
+              </div>
+              <button
+                  type="button"
+                  onClick={() => setManualKotaInput(!manualKotaInput)}
+                  className="text-[11px] font-mono text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200 underline"
+                >
+                  {manualKotaInput ? 'Gunakan Dropdown API Wilayah' : 'Input Manual Teks'}
+              </button>
+            </div>
+
+              {!manualKotaInput ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Dropdown Provinsi */}
+              <div className="space-y-1">
+                  <Label className="text-[11px] text-zinc-500">Pilih Provinsi</Label>
+                  <select
+                      value={selectedProvinceId}
+                      onChange={(e) => handleProvinceChange(e.target.value)}
+                      className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
+                    >
+                    <option value="">-- Pilih Provinsi (38 Provinsi) --</option>
+                      {provinces.map((prov) => {
+                        const val = prov.id || prov.kode
+                        const label = prov.nama || prov.name
+                        return (
+                        <option key={val} value={val}>
+                            {formatProvinceName(label)}
+                        </option>
+                        )
+                      })}
+                  </select>
+              </div>
+
+                {/* Dropdown Kota / Kabupaten */}
+              <div className="space-y-1">
+                  <Label className="text-[11px] text-zinc-500">
+                      Pilih Kota / Kabupaten * {loadingWilayah && '(Memuat...)'}
+                  </Label>
+                  <select
+                      value={selectedRegencyId}
+                      onChange={(e) => handleRegencyChange(e.target.value)}
+                      disabled={!selectedProvinceId || loadingWilayah}
+                      className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs disabled:opacity-50"
+                    >
+                    <option value="">-- Pilih Kota/Kabupaten --</option>
+                      {regencies.map((reg) => {
+                        const val = reg.id || reg.kode
+                        const label = reg.nama || reg.name
+                        return (
+                        <option key={val} value={val}>
+                            {formatCityName(label)}
+                        </option>
+                        )
+                      })}
+                  </select>
+              </div>
+
+                {/* Hasil Format Kota & Provinsi */}
+              <div className="space-y-1">
+                  <Label className="text-[11px] text-zinc-500">Format Kota & Provinsi</Label>
+                  <Input
+                      value={formData.kota_provinsi}
+                      onChange={(e) => setFormData({ ...formData, kota_provinsi: e.target.value })}
+                      placeholder="Bandung, Jawa Barat"
+                      className="h-8 text-xs bg-white dark:bg-zinc-900 font-medium"
+                    />
+                </div>
+              </div>
+              ) : (
+              <div className="space-y-1">
+                <Label className="text-[11px] text-zinc-500">Kota / Kabupaten & Provinsi (Input Manual) *</Label>
+                <Input
+                    value={formData.kota_provinsi}
+                    onChange={(e) => setFormData({ ...formData, kota_provinsi: e.target.value })}
+                    placeholder="Contoh: Bandung, Jawa Barat"
+                    className="h-8 text-xs bg-white dark:bg-zinc-900"
+                  />
+              </div>
+              )}
+          </div>
+
+
+
+
           {/* PEMILIH KOORDINAT PETA OPENSTREETMAP */}
           <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
             <div className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800">
@@ -997,7 +1117,6 @@ export default function KSTFormPage({ onSaveSuccess }) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Profil Kawasan (Wonderful BRIN)</h3>
-            <p className="text-xs text-zinc-500">Isi narasi profil, peran kawasan, tema fokus utama, serta mitra yang terhubung.</p>
           </div>
 
           <div className="space-y-4 text-xs">
@@ -1023,93 +1142,6 @@ export default function KSTFormPage({ onSaveSuccess }) {
               />
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold">Tema Riset (Fokus Utama)</Label>
-                <span className="text-[11px] text-zinc-400 font-mono">
-                  {(formData.fokus_utama || []).length} terpilih
-                </span>
-              </div>
-              <p className="text-[11px] text-zinc-500">Pilih tema riset yang menjadi fokus utama kawasan ini (tinggal klik untuk memilih, atau buat baru):</p>
-              <div className="flex flex-wrap gap-2 pt-1 items-center">
-                {categories.tema_riset.map((tema) => {
-                  const isSelected = (formData.fokus_utama || []).includes(tema)
-                  return (
-                    <button
-                      key={tema}
-                      type="button"
-                      onClick={() => toggleTemaRiset(tema)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 border cursor-pointer flex items-center gap-1 ${
-                        isSelected
-                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 shadow-sm'
-                          : 'bg-zinc-50 text-zinc-600 dark:bg-zinc-900/60 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600'
-                      }`}
-                    >
-                      {isSelected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                      <span>{tema}</span>
-                    </button>
-                  )
-                })}
-
-                {showNewThemeInput ? (
-                  <div className="flex items-center gap-1.5 p-1 rounded-full border border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/60">
-                    <Input
-                      autoFocus
-                      value={newThemeInput}
-                      onChange={(e) => setNewThemeInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          handleCreateInlineTheme()
-                        }
-                      }}
-                      placeholder="Nama tema riset baru..."
-                      className="h-7 text-xs border-0 bg-transparent px-2.5 w-44 focus-visible:ring-0"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={handleCreateInlineTheme}
-                      disabled={creatingMaster || !newThemeInput.trim()}
-                      className="h-6 px-2.5 text-[11px] rounded-full"
-                    >
-                      {creatingMaster ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Simpan'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowNewThemeInput(false)
-                        setNewThemeInput('')
-                      }}
-                      className="h-6 px-2 text-[11px] rounded-full"
-                    >
-                      Batal
-                    </Button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowNewThemeInput(true)}
-                    className="px-3 py-1.5 rounded-full text-xs font-medium border border-dashed border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:border-zinc-400 transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Buat Tema Baru</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold">Terhubung Dengan</Label>
-              <Input
-                value={formData.terhubung_dengan}
-                onChange={(e) => setFormData({ ...formData, terhubung_dengan: e.target.value })}
-                placeholder="Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan."
-                className="h-9 text-xs"
-              />
-            </div>
           </div>
         </Card>
       )}
@@ -1120,8 +1152,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Fasilitas Unggulan Kawasan</h3>
-              <p className="text-xs text-zinc-500">Pilih dari master fasilitas di bawah atau buat fasilitas kustom manual.</p>
-            </div>
+              </div>
             <Button
               type="button"
               variant="outline"
@@ -1300,14 +1331,13 @@ export default function KSTFormPage({ onSaveSuccess }) {
         </Card>
       )}
 
-      {/* TAB 4: BIDANG RISET */}
+      {/* TAB 4: TEMA RISET */}
       {activeTab === 'riset' && (
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-5">
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Bidang Riset & Inovasi</h3>
-              <p className="text-xs text-zinc-500">Pilih dari master tema riset di bawah atau buat bidang riset kustom secara manual.</p>
-            </div>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Tema Riset & Inovasi</h3>
+              </div>
             <Button
               type="button"
               variant="outline"
@@ -1316,7 +1346,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
               className="h-8 text-xs gap-1 font-medium"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Bidang Riset Manual</span>
+              <span>Tambah Tema Riset Manual</span>
             </Button>
           </div>
 
@@ -1337,7 +1367,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
 
             <div className="flex flex-wrap gap-2 pt-1 items-center">
               {masterThemes.map((theme) => {
-                const countAdded = formData.riset.filter(r => r.bidang.toLowerCase() === theme.nama.toLowerCase()).length
+                const countAdded = formData.riset.filter(r => r.tema.toLowerCase() === theme.nama.toLowerCase()).length
                 return (
                   <button
                     key={theme.id || theme.nama}
@@ -1414,8 +1444,8 @@ export default function KSTFormPage({ onSaveSuccess }) {
           {formData.riset.length === 0 ? (
             <div className="p-8 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-xl text-center space-y-2 text-zinc-400">
               <Sparkles className="w-8 h-8 mx-auto stroke-1 text-zinc-400" />
-              <div className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Belum ada bidang riset yang ditambahkan</div>
-              <p className="text-[11px] text-zinc-400">Pilih tema riset siap pakai di atas atau klik Tambah Bidang Riset Manual.</p>
+              <div className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Belum ada tema riset yang ditambahkan</div>
+              <p className="text-[11px] text-zinc-400">Pilih tema riset siap pakai di atas atau klik Tambah Tema Riset Manual.</p>
               <Button
                 type="button"
                 variant="outline"
@@ -1424,7 +1454,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                 className="h-8 text-xs gap-1.5 mt-2"
               >
                 <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Bidang Riset Manual</span>
+                <span>Tambah Tema Riset Manual</span>
               </Button>
             </div>
           ) : (
@@ -1435,12 +1465,12 @@ export default function KSTFormPage({ onSaveSuccess }) {
                   className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-3"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Bidang Riset</span>
+                    <span className="text-[11px] font-medium text-zinc-700 dark:text-zinc-300">Tema Riset</span>
                     <button
                       type="button"
                       onClick={() => removeResearch(idx)}
                       className="text-zinc-400 hover:text-rose-600 transition-colors"
-                      title="Hapus Bidang Riset"
+                      title="Hapus Tema Riset"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -1459,7 +1489,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
                     <div className="space-y-1">
                       <Label className="text-[11px]">Tema Riset</Label>
                       <select
-                        value={r.bidang}
+                        value={r.tema}
                         onChange={(e) => updateResearch(idx, 'bidang', e.target.value)}
                         className="w-full h-8 px-2 rounded-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-xs"
                       >
@@ -1516,8 +1546,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Dampak Strategis & Data Highlight</h3>
-              <p className="text-xs text-zinc-500">Pilih dari master pilar dampak di bawah atau buat pilar dampak kustom secara manual.</p>
-            </div>
+              </div>
             <Button
               type="button"
               variant="outline"
@@ -1698,11 +1727,11 @@ export default function KSTFormPage({ onSaveSuccess }) {
               </div>
 
               <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 text-center space-y-1">
-                <div className="text-[11px] text-zinc-400 font-mono">Bidang Riset</div>
+                <div className="text-[11px] text-zinc-400 font-mono">Tema Riset</div>
                 <Input
                   type="number"
-                  value={formData.highlight_bidang_riset}
-                  onChange={(e) => setFormData({ ...formData, highlight_bidang_riset: Number(e.target.value) })}
+                  value={formData.highlight_tema_riset}
+                  onChange={(e) => setFormData({ ...formData, highlight_tema_riset: Number(e.target.value) })}
                   className="h-8 text-center text-sm font-bold font-mono"
                 />
               </div>
@@ -1736,7 +1765,6 @@ export default function KSTFormPage({ onSaveSuccess }) {
         <Card className="p-6 border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/60 shadow-sm space-y-6">
           <div className="border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Potensi & Kemitraan Kolaborasi</h3>
-            <p className="text-xs text-zinc-500">Pilih sektor mitra kerja sama strategis dan kelola daftar mitra kolaborasi terhubung kawasan.</p>
           </div>
 
           {/* Potensi Kolaborasi */}
@@ -1885,8 +1913,7 @@ export default function KSTFormPage({ onSaveSuccess }) {
           <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
             <div>
               <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">Galeri Dokumentasi & Foto Riset</h3>
-              <p className="text-xs text-zinc-500">Unggah kumpulan foto kegiatan riset, gedung laboratorium, dan fasilitas kawasan.</p>
-            </div>
+              </div>
             <div className="relative">
               <input
                 type="file"
@@ -1963,6 +1990,38 @@ export default function KSTFormPage({ onSaveSuccess }) {
           </Button>
         </div>
       </div>
+
+      <AlertDialog open={confirmModalOpen} onOpenChange={setConfirmModalOpen}>
+        <AlertDialogContent className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-sm font-semibold">Ada Data yang Belum Diisi</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
+              Beberapa data pendukung masih kosong:
+              <ul className="list-disc list-inside mt-2 space-y-1">
+                {missingFields.map((field) => (
+                  <li key={field}>{field}</li>
+                ))}
+              </ul>
+              <br />
+              Apakah Anda yakin ingin tetap menyimpan KST ini?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-8 text-xs">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmModalOpen(false)
+                if (pendingPayload) {
+                  executeSave(pendingPayload)
+                }
+              }}
+              className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Tetap Simpan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   )
 }

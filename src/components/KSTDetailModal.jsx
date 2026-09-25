@@ -273,7 +273,9 @@ export default function KSTDetailModal({ kst, open, onClose }) {
                     <span>Fasilitas Terhubung</span>
                   </div>
                   <p className="text-[11px] text-zinc-500 leading-relaxed">
-                    {kst.fasilitas_terhubung || 'Laboratorium Material, Pilot Plant Pangan, Pusat Analisis Data, Observatorium Lingkungan.'}
+                    {kst.fasilitas && kst.fasilitas.length > 0
+                      ? kst.fasilitas.map(f => f.nama || f.tipe).filter(Boolean).join(', ')
+                      : (kst.fasilitas_terhubung || 'Laboratorium dan sarana riset terintegrasi kawasan.')}
                   </p>
                 </div>
               </div>
@@ -309,25 +311,25 @@ export default function KSTDetailModal({ kst, open, onClose }) {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
                     <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      {kst.fasilitas?.length || 4}
+                      {kst.fasilitas?.length || 0}
                     </div>
                     <div className="text-[11px] text-zinc-500">Fasilitas</div>
                   </div>
                   <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
                     <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      {kst.riset?.length || 6}
+                      {kst.riset?.length || 0}
                     </div>
                     <div className="text-[11px] text-zinc-500">Bidang Riset</div>
                   </div>
                   <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
                     <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      {kst.daftar_kolaborasi?.length || 12}
+                      {kst.daftar_kolaborasi?.length || 0}
                     </div>
                     <div className="text-[11px] text-zinc-500">Program Kolaborasi</div>
                   </div>
                   <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
                     <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      32
+                      {new Set((kst.daftar_kolaborasi || []).map(d => d.mitra).filter(Boolean)).size || (kst.daftar_kolaborasi || []).length || 0}
                     </div>
                     <div className="text-[11px] text-zinc-500">Mitra</div>
                   </div>

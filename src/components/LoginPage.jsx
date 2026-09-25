@@ -3,9 +3,9 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { login, saveTokens } from '@/lib/api'
+import { login, saveTokens, SWAGGER_URL } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
-import { Loader2, Lock, User, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react'
+import { Loader2, Lock, User, Eye, EyeOff, AlertCircle, ArrowRight, ShieldCheck, Sun, Moon, BookOpen, ExternalLink } from 'lucide-react'
 
 export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('')
@@ -60,13 +60,27 @@ export default function LoginPage({ onLogin }) {
           </div>
         </div>
 
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors text-zinc-600 dark:text-zinc-400"
-          title="Ganti Tema"
-        >
-          {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Direct Swagger API Docs Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(SWAGGER_URL, '_blank')}
+            className="h-9 text-xs font-medium border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300"
+          >
+            <BookOpen className="w-3.5 h-3.5 mr-1.5 text-zinc-500 dark:text-zinc-400" />
+            API Docs
+            <ExternalLink className="w-3.5 h-3.5 ml-1.5 text-zinc-400 dark:text-zinc-500" />
+          </Button>
+
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-md border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors text-zinc-600 dark:text-zinc-400"
+            title="Ganti Tema"
+          >
+            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+          </button>
+        </div>
       </header>
 
       {/* Center Login Card */}
