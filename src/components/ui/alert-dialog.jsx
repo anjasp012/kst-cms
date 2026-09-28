@@ -1,5 +1,6 @@
 import * as React from 'react'
 import * as AlertDialogPrimitive from '@radix-ui/react-alert-dialog'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 
@@ -18,17 +19,31 @@ const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
   />
 ))
 
-const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
+const AlertDialogContent = React.forwardRef(({ className, children, showClose = true, ...props }, ref) => (
   <AlertDialogPortal>
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
+        'relative fixed left-[50%] top-[50%] z-50 w-full max-w-md translate-x-[-50%] translate-y-[-50%] border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-lg p-6 shadow-2xl duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
         className
       )}
       {...props}
-    />
+    >
+      {children}
+      {showClose && (
+        <AlertDialogPrimitive.Cancel asChild>
+          <button
+            type="button"
+            className="absolute right-3.5 top-3.5 w-7 h-7 flex items-center justify-center rounded-md text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors z-10 cursor-pointer"
+            aria-label="Tutup"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Tutup</span>
+          </button>
+        </AlertDialogPrimitive.Cancel>
+      )}
+    </AlertDialogPrimitive.Content>
   </AlertDialogPortal>
 ))
 

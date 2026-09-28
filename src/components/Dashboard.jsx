@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import KSTManagementView from './KSTManagementView'
-import KSTFormPage from './KSTFormPage'
+import LocationManagementView from './LocationManagementView'
+import LocationFormPage from './LocationFormPage'
 import CategoryManagementView from './CategoryManagementView'
 import WilayahManagementView from './WilayahManagementView'
 import {
@@ -10,10 +10,11 @@ import {
   createKST,
   updateKST,
   deleteKST,
-    fetchKSTCategories,
+  fetchKSTCategories,
   fetchDampak,
   fetchCollaborations,
   fetchProvinces,
+  fetchJenisKawasan,
   SWAGGER_URL,
 } from '@/lib/api'
 import { useTheme } from '@/lib/theme'
@@ -33,6 +34,7 @@ import {
   Globe2,
   BookOpen,
   ExternalLink,
+  Map,
 } from 'lucide-react'
 
 export default function Dashboard({ username, onLogout }) {
@@ -42,13 +44,20 @@ export default function Dashboard({ username, onLogout }) {
   // Derive currentView from URL path
   const currentView = useMemo(() => {
     const path = location.pathname.replace(/^\//, '')
-    if (path === 'kst/new' || path.startsWith('kst/edit')) return 'kst-form'
+    if (
+      path === 'data-peta-lokasi/new' || path.startsWith('data-peta-lokasi/edit') ||
+      path === 'data-peta-kawasan/new' || path.startsWith('data-peta-kawasan/edit') ||
+      path === 'peta-kawasan/new' || path.startsWith('peta-kawasan/edit') ||
+      path === 'kst/new' || path.startsWith('kst/edit')
+    ) return 'kst-form'
+    if (path === 'jenis-kawasan' || path === 'kawasan' || path === 'instansi') return 'jenis-kawasan'
     if (path === 'tema-riset') return 'tema-riset'
     if (path === 'tipe-fasilitas' || path === 'fasilitas') return 'tipe-fasilitas'
     if (path === 'dampak') return 'dampak'
     if (path === 'kolaborasi' || path === 'potensi-kolaborasi') return 'kolaborasi'
     if (path === 'wilayah') return 'wilayah'
-    return 'kst'
+    if (path === 'data-peta-lokasi' || path === 'data-peta-kawasan' || path === 'peta-kawasan' || path === 'kst') return 'data-peta-lokasi'
+    return 'data-peta-lokasi'
   }, [location.pathname])
 
   const setCurrentView = useCallback((view) => {
@@ -64,6 +73,7 @@ export default function Dashboard({ username, onLogout }) {
   const [dampakCount, setDampakCount] = useState(5)
   const [collabCount, setCollabCount] = useState(4)
   const [wilayahCount, setWilayahCount] = useState(38)
+  const [jenisKawasanCount, setJenisKawasanCount] = useState(4)
 
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -72,8 +82,11 @@ export default function Dashboard({ username, onLogout }) {
   const isFetchingRef = useRef(false)
 
   const viewTitles = {
-    kst: 'Kawasan Sains dan Teknologi (KST) BRIN',
-    'kst-form': 'Form Kawasan Sains dan Teknologi',
+    'data-peta-lokasi': 'Data Peta Lokasi',
+    'data-peta-kawasan': 'Data Peta Lokasi',
+    kst: 'Data Peta Lokasi',
+    'kst-form': 'Form Data Peta Lokasi',
+    'jenis-kawasan': 'Master Data — Jenis Kawasan',
     'tema-riset': 'Master Data — Tema Riset',
     'tipe-fasilitas': 'Master Data — Fasilitas',
     dampak: 'Master Data — Dampak',
@@ -89,7 +102,7 @@ export default function Dashboard({ username, onLogout }) {
     if (isManualRefresh) setLoading(true)
 
     try {
-      const [kstRes, catRes, dampakRes, collabRes, provRes] = await Promise.all([
+      const [kstRes, catRes, dampakRes, collabRes, provRes, jenisKawasanRes] = await Promise.all([
         fetchKSTLocations().catch(() => []),
         fetchKSTCategories(true).catch(() => ({
           tema_riset: [],
@@ -99,10 +112,11 @@ export default function Dashboard({ username, onLogout }) {
         fetchDampak().catch(() => []),
         fetchCollaborations().catch(() => []),
         fetchProvinces().catch(() => []),
+        fetchJenisKawasan().catch(() => []),
       ])
 
       if (Array.isArray(kstRes)) setKstLocations(kstRes)
-            if (catRes) {
+      if (catRes) {
         setCategoriesData({
           tema_riset: catRes.tema_riset || [],
           tipe_fasilitas: catRes.tipe_fasilitas || [],
@@ -112,6 +126,7 @@ export default function Dashboard({ username, onLogout }) {
       if (Array.isArray(dampakRes)) setDampakCount(dampakRes.length)
       if (Array.isArray(collabRes)) setCollabCount(collabRes.length)
       if (Array.isArray(provRes)) setWilayahCount(provRes.length)
+      if (Array.isArray(jenisKawasanRes)) setJenisKawasanCount(jenisKawasanRes.length)
 
       if (isManualRefresh) {
         toast.success('Data berhasil diperbarui')
@@ -167,9 +182,9 @@ export default function Dashboard({ username, onLogout }) {
       title: 'Menu Utama',
       items: [
         {
-          id: 'kst',
-          label: 'Kawasan Sains & Mitra',
-          icon: Building2,
+          id: 'data-peta-lokasi',
+          label: 'Data Peta Lokasi',
+          icon: Map,
           count: kstLocations.length,
         },
       ],
@@ -177,6 +192,12 @@ export default function Dashboard({ username, onLogout }) {
     {
       title: 'Master Data',
       items: [
+        {
+          id: 'jenis-kawasan',
+          label: 'Jenis Kawasan',
+          icon: Building2,
+          count: jenisKawasanCount,
+        },
         {
           id: 'tema-riset',
           label: 'Tema Riset',
@@ -232,13 +253,13 @@ export default function Dashboard({ username, onLogout }) {
         <div className="flex flex-col flex-1 overflow-hidden">
           {/* Logo & Brand Header */}
           <div className="h-14 px-5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 flex-shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-xs text-zinc-100 dark:text-zinc-900 shadow-sm flex-shrink-0">
-                KST
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-7 h-7 rounded bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-[10px] text-zinc-100 dark:text-zinc-900 shadow-sm flex-shrink-0">
+                BRIN
               </div>
-              <div>
-                <div className="font-semibold text-sm tracking-tight text-zinc-900 dark:text-zinc-100 leading-none">
-                  KST BRIN
+              <div className="min-w-0">
+                <div className="font-semibold text-xs tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
+                  Jelajahi Kawasan Terpadu BRIN
                 </div>
                 <div className="text-[10px] text-zinc-400 font-mono mt-0.5 leading-none">ADMIN CMS</div>
               </div>
@@ -328,7 +349,7 @@ export default function Dashboard({ username, onLogout }) {
               <Menu className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-2 text-sm">
-              <span className="text-zinc-400 dark:text-zinc-500 font-mono text-xs">KST BRIN</span>
+              <span className="text-zinc-400 dark:text-zinc-500 font-mono text-xs">Jelajahi Kawasan Terpadu BRIN</span>
               <ChevronRight className="w-3.5 h-3.5 text-zinc-400 dark:text-zinc-700" />
               <span className="font-medium text-zinc-800 dark:text-zinc-200 text-sm">{viewTitles[currentView]}</span>
             </div>
@@ -362,9 +383,9 @@ export default function Dashboard({ username, onLogout }) {
 
         {/* View Router Render */}
         <div className="p-5 sm:p-8 space-y-6 flex-1">
-          {/* 1. KST Management (Primary) — includes Mitra tab inside */}
-          {currentView === 'kst' && (
-            <KSTManagementView
+          {/* 1. Data Peta Lokasi Management (Primary) */}
+          {(currentView === 'data-peta-lokasi' || currentView === 'data-peta-kawasan' || currentView === 'kst') && (
+            <LocationManagementView
               locations={kstLocations}
               loading={loading}
               onCreate={handleCreateKST}
@@ -374,10 +395,18 @@ export default function Dashboard({ username, onLogout }) {
             />
           )}
 
-          {/* 2. KST Dedicated Form Page (Create / Edit 6 Tabs) */}
+          {/* 2. Dedicated Location Form Page (Create / Edit 6 Tabs) */}
           {currentView === 'kst-form' && (
-            <KSTFormPage
+            <LocationFormPage
               onSaveSuccess={() => loadData(true)}
+            />
+          )}
+
+          {/* Master Data: Jenis Kawasan */}
+          {currentView === 'jenis-kawasan' && (
+            <CategoryManagementView
+              activeType="jenis_kawasan"
+              onCategoriesChanged={() => loadData()}
             />
           )}
 
@@ -439,7 +468,7 @@ export default function Dashboard({ username, onLogout }) {
 
         {/* Global Footer */}
         <footer className="px-8 py-4 border-t border-zinc-200 dark:border-zinc-800/60 text-xs text-zinc-400 dark:text-zinc-600 flex items-center justify-between font-mono">
-          <div>&copy; 2026 BRIN &bull; Kawasan Sains dan Teknologi</div>
+          <div>&copy; 2026 BRIN &bull; Kawasan Terpadu BRIN</div>
           <div></div>
         </footer>
       </main>

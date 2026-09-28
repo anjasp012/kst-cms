@@ -51,11 +51,11 @@ export default function LoginPage({ onLogin }) {
       <header className="relative z-10 w-full px-6 sm:px-10 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center font-bold text-xs text-zinc-100 dark:text-zinc-900 shadow-sm">
-            KST
+            BRIN
           </div>
           <div>
             <div className="font-semibold text-sm tracking-tight text-zinc-900 dark:text-zinc-100">
-              KST BRIN
+              Jelajahi Kawasan Terpadu BRIN
             </div>
           </div>
         </div>
@@ -92,7 +92,7 @@ export default function LoginPage({ onLogin }) {
                 Login Admin
               </h1>
               <p className="text-xs text-zinc-500">
-                Gunakan kredensial admin untuk mengelola KST
+                Gunakan kredensial admin untuk mengelola Jelajahi Kawasan Terpadu BRIN
               </p>
             </div>
 
@@ -181,7 +181,7 @@ export default function LoginPage({ onLogin }) {
 
       {/* Footer */}
       <footer className="relative z-10 w-full px-6 py-4 text-center text-xs text-zinc-500 font-mono">
-        &copy; 2026 BRIN &bull; Kawasan Sains dan Teknologi
+        &copy; 2026 BRIN &bull; Kawasan Terpadu BRIN
       </footer>
     </div>
   )

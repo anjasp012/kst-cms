@@ -27,7 +27,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/kst" replace />} />
+        <Route path="/" element={<Navigate to="/data-peta-lokasi" replace />} />
+        <Route path="/data-peta-kawasan" element={<Navigate to="/data-peta-lokasi" replace />} />
+        <Route path="/kst" element={<Navigate to="/data-peta-lokasi" replace />} />
         <Route path="/*" element={<Dashboard username={user} onLogout={handleLogout} />} />
       </Routes>
     </BrowserRouter>

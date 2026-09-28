@@ -3,7 +3,6 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -25,6 +24,7 @@ import {
   Cpu,
   Handshake,
   Award,
+  Building2,
   Plus,
   Search,
   Edit,
@@ -33,6 +33,8 @@ import {
   CheckCircle2,
   XCircle,
   Globe2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import {
   fetchCategoriesList,
@@ -43,6 +45,15 @@ import {
 import { toast } from 'sonner'
 
 const TYPE_CONFIG = {
+  jenis_kawasan: {
+    label: 'Jenis Kawasan',
+    singular: 'Jenis Kawasan',
+    description: 'Kategori jenis kawasan dan entitas (contoh: Kawasan Sains (KST), BRIDA, BAPPERIDA, BAPPEDA).',
+    icon: Building2,
+    color: 'blue',
+    badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+    placeholder: 'Contoh: Kawasan Sains (KST)',
+  },
   tema_riset: {
     label: 'Tema Riset',
     singular: 'Tema Riset',
@@ -149,6 +160,21 @@ export default function CategoryManagementView({
     )
   }, [items, search])
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
+
+  // Reset page when search or activeType changes
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [search, activeType])
+
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage) || 1
+  const paginatedItems = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredItems.slice(start, start + itemsPerPage)
+  }, [filteredItems, currentPage])
+
   // Handlers for Add / Edit
   const handleOpenAdd = () => {
     setEditingItem(null)
@@ -252,14 +278,9 @@ export default function CategoryManagementView({
       {/* Description & Search / Action Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center">
-              Master Data &mdash; {config.label}
-            </h1>
-            <Badge variant="outline" className="text-[11px] font-mono">
-              {filteredItems.length} Data
-            </Badge>
-          </div>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 flex items-center">
+            Master Data &mdash; {config.label}
+          </h1>
         </div>
 
         <div className="flex items-center gap-2.5">
@@ -304,7 +325,8 @@ export default function CategoryManagementView({
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 text-zinc-500 font-mono">
@@ -317,13 +339,13 @@ export default function CategoryManagementView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
-                {filteredItems.map((item, idx) => (
+                {paginatedItems.map((item, idx) => (
                   <tr
                     key={item.id}
                     className="hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40 transition-colors group"
                   >
                     <td className="py-3 px-4 text-center text-zinc-400 font-mono text-[11px]">
-                      {idx + 1}
+                      {(currentPage - 1) * itemsPerPage + idx + 1}
                     </td>
                     <td className="py-3 px-4 font-medium text-zinc-900 dark:text-zinc-100">
                       <div className="flex items-center gap-2">
@@ -388,6 +410,41 @@ export default function CategoryManagementView({
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          {filteredItems.length > 0 && (
+            <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
+              <div>
+                Menampilkan {(currentPage - 1) * itemsPerPage + 1} -{' '}
+                {Math.min(currentPage * itemsPerPage, filteredItems.length)} dari{' '}
+                {filteredItems.length} {config.label}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  className="h-8 px-2.5 text-xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Prev
+                </Button>
+                <span className="px-2 font-mono text-[11px]">
+                  {currentPage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  className="h-8 px-2.5 text-xs"
+                >
+                  Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
         )}
       </Card>
 
@@ -404,15 +461,13 @@ export default function CategoryManagementView({
                 <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {editingItem ? `Edit ${config.singular}` : `Tambah ${config.singular} Baru`}
                 </DialogTitle>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  {config.description}
-                </p>
               </div>
             </div>
           </div>
 
           <form onSubmit={handleSave}>
             <div className="p-5 space-y-4">
+              {/* 1. Nama */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Nama {config.singular} <span className="text-rose-500">*</span>
@@ -427,6 +482,20 @@ export default function CategoryManagementView({
                 />
               </div>
 
+              {/* 2. Slug */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                  Slug Identifier <span className="text-zinc-400 font-normal font-mono text-[10px]">(Otomatis)</span>
+                </Label>
+                <Input
+                  value={formData.slug}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                  placeholder="slug-otomatis"
+                  className="h-9 text-xs font-mono bg-zinc-50/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
+                />
+              </div>
+
+              {/* 3. Deskripsi */}
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
                   Deskripsi Singkat <span className="text-zinc-400 font-normal">(Opsional)</span>
@@ -437,18 +506,6 @@ export default function CategoryManagementView({
                   onChange={(e) => setFormData((prev) => ({ ...prev, deskripsi: e.target.value }))}
                   placeholder={`Penjelasan ringkas mengenai ${config.singular.toLowerCase()} ini...`}
                   className="w-full p-2.5 rounded-md text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 leading-relaxed resize-none"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Slug Identifier <span className="text-zinc-400 font-normal font-mono text-[10px]">(Otomatis)</span>
-                </Label>
-                <Input
-                  value={formData.slug}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
-                  placeholder="slug-otomatis"
-                  className="h-9 text-xs font-mono bg-zinc-50/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-500"
                 />
               </div>
 

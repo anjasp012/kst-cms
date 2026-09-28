@@ -26,19 +26,27 @@ function forceLogout() {
   window.location.href = '/';
 }
 
-function authHeaders() {
+export const PUBLIC_ACCESS_TOKEN = import.meta.env.VITE_ACCESS_TOKEN || '7f2b9a4c1d8e03f56a9b8c2d1e4f7a0b3c5d6e8f9a0b1c2d3e4f5a6b7c8d9e0f';
+
+function authHeaders(url = '') {
   const jwt = getJwt();
-  return {
+  const headers = {
     'Content-Type': 'application/json',
-    ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
   };
+  if (jwt) {
+    headers['Authorization'] = `Bearer ${jwt}`;
+  }
+  if (url.includes('/kst/')) {
+    headers['X-Access-Token'] = PUBLIC_ACCESS_TOKEN;
+  }
+  return headers;
 }
 
 export async function request(url, options = {}) {
   let res = await fetch(url, {
     ...options,
     headers: {
-      ...authHeaders(),
+      ...authHeaders(url),
       ...(options.headers || {}),
     },
   });
@@ -88,12 +96,16 @@ export async function request(url, options = {}) {
   return res.json();
 }
 
+// =========================================================================
+// 🔐 1. AUTENTIKASI ADMIN CMS (/auth)
+// =========================================================================
 export async function login(username, password) {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
+
   if (!res.ok) {
     let msg = 'Username atau password salah';
     try {
@@ -105,12 +117,16 @@ export async function login(username, password) {
   return res.json();
 }
 
-// 📊 1. ANALITIK & STATISTIK KST
+// =========================================================================
+// 📊 2. ANALITIK & STATISTIK CMS (/admin)
+// =========================================================================
 export async function fetchKSTAnalytics() {
   return request(`${API_BASE}/admin/analytics`);
 }
 
-// 📁 2. FILE UPLOAD (Gambar / Thumbnail / Galeri)
+// =========================================================================
+// 📁 3. FILE UPLOAD MEDIA (/admin)
+// =========================================================================
 export async function uploadFile(file) {
   const formData = new FormData();
   formData.append('file', file);
@@ -137,7 +153,9 @@ export async function uploadFile(file) {
   return res.json();
 }
 
-// 🗺️ 3. KAWASAN SAINS DAN TEKNOLOGI (KST)
+// =========================================================================
+// 🗺️ 4. MANAJEMEN LOKASI KST (/admin/lokasi)
+// =========================================================================
 export async function fetchKSTLocations(params = {}) {
   const query = new URLSearchParams();
   if (params.wilayah) query.append('wilayah', params.wilayah);
@@ -146,70 +164,55 @@ export async function fetchKSTLocations(params = {}) {
   if (params.kolaborasi) query.append('kolaborasi', params.kolaborasi);
   if (params.q) query.append('q', params.q);
   const qs = query.toString() ? `?${query.toString()}` : '';
-  return request(`${API_BASE}/kst/map${qs}`);
+  return request(`${API_BASE}/admin/lokasi/peta${qs}`);
 }
 
 export async function fetchKSTDetail(idOrSlug) {
-  return request(`${API_BASE}/kst/locations/${idOrSlug}`);
+  return request(`${API_BASE}/admin/lokasi/${idOrSlug}`);
 }
 
 export async function createKST(payload) {
-  return request(`${API_BASE}/kst/locations`, {
+  return request(`${API_BASE}/admin/lokasi`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export async function updateKST(id, payload) {
-  return request(`${API_BASE}/kst/locations/${id}`, {
+  return request(`${API_BASE}/admin/lokasi/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export async function deleteKST(id) {
-  return request(`${API_BASE}/kst/locations/${id}`, {
+  return request(`${API_BASE}/admin/lokasi/${id}`, {
     method: 'DELETE',
   });
 }
 
-// 🏛️ 4. MITRA RISET DAERAH (BAPPEDA / BAPPERIDA / BRIDA)
-export async function fetchRegionalPartners(params = {}) {
-  const query = new URLSearchParams();
-  if (params.jenis) query.append('jenis', params.jenis);
-  if (params.wilayah) query.append('wilayah', params.wilayah);
-  if (params.q) query.append('q', params.q);
-  const qs = query.toString() ? `?${query.toString()}` : '';
-  return request(`${API_BASE}/kst/partners${qs}`);
-}
+// Aliases
+export const fetchLocations = fetchKSTLocations;
+export const fetchLocationDetail = fetchKSTDetail;
+export const createLocation = createKST;
+export const updateLocation = updateKST;
+export const deleteLocation = deleteKST;
 
-export async function createRegionalPartner(payload) {
-  return request(`${API_BASE}/kst/partners`, {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-}
+export const fetchLokasi = fetchKSTLocations;
+export const fetchDetailLokasi = fetchKSTDetail;
+export const createLokasi = createKST;
+export const updateLokasi = updateKST;
+export const deleteLokasi = deleteKST;
 
-export async function updateRegionalPartner(id, payload) {
-  return request(`${API_BASE}/kst/partners/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
-}
-
-export async function deleteRegionalPartner(id) {
-  return request(`${API_BASE}/kst/partners/${id}`, {
-    method: 'DELETE',
-  });
-}
-
-// 🏷️ 5. MASTER KATEGORI GABUNGAN (Untuk filter Wonderful BRIN & Form KST)
+// =========================================================================
+// 🏷️ 5. MASTER KATEGORI GABUNGAN (DROPDOWN) (/admin/kategori)
+// =========================================================================
 let categoriesCache = null;
 
 export async function fetchKSTCategories(forceRefresh = false) {
   if (!forceRefresh && categoriesCache) return categoriesCache;
   try {
-    const res = await request(`${API_BASE}/kst/categories`);
+    const res = await request(`${API_BASE}/admin/kategori`);
     categoriesCache = res;
     return res;
   } catch (err) {
@@ -222,16 +225,19 @@ export async function fetchKSTCategories(forceRefresh = false) {
     };
   }
 }
+export const fetchKategori = fetchKSTCategories;
 
-// 🧪 5A. TEMA RISET (Tabel terpisah: kst_themeriset)
+// =========================================================================
+// 🧪 6. FOKUS / TEMA RISET (/admin/fokus-riset)
+// =========================================================================
 export async function fetchThemes(includeInactive = true) {
   const qs = includeInactive ? '?include_inactive=true' : '';
-  return request(`${API_BASE}/kst/themeriset${qs}`);
+  return request(`${API_BASE}/admin/fokus-riset${qs}`);
 }
 
 export async function createTheme(payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/themeriset`, {
+  return request(`${API_BASE}/admin/fokus-riset`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -239,7 +245,7 @@ export async function createTheme(payload) {
 
 export async function updateTheme(id, payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/themeriset/${id}`, {
+  return request(`${API_BASE}/admin/fokus-riset/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -247,20 +253,27 @@ export async function updateTheme(id, payload) {
 
 export async function deleteTheme(id) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/themeriset/${id}`, {
+  return request(`${API_BASE}/admin/fokus-riset/${id}`, {
     method: 'DELETE',
   });
 }
 
-// 🏢 5B. TIPE FASILITAS (Tabel terpisah: kst_facilities)
+export const fetchTemaRiset = fetchThemes;
+export const createTemaRiset = createTheme;
+export const updateTemaRiset = updateTheme;
+export const deleteTemaRiset = deleteTheme;
+
+// =========================================================================
+// 🏢 7. TIPE FASILITAS (/admin/fasilitas)
+// =========================================================================
 export async function fetchFacilities(includeInactive = true) {
   const qs = includeInactive ? '?include_inactive=true' : '';
-  return request(`${API_BASE}/kst/facilities${qs}`);
+  return request(`${API_BASE}/admin/fasilitas${qs}`);
 }
 
 export async function createFacility(payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/facilities`, {
+  return request(`${API_BASE}/admin/fasilitas`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -268,7 +281,7 @@ export async function createFacility(payload) {
 
 export async function updateFacility(id, payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/facilities/${id}`, {
+  return request(`${API_BASE}/admin/fasilitas/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -276,20 +289,27 @@ export async function updateFacility(id, payload) {
 
 export async function deleteFacility(id) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/facilities/${id}`, {
+  return request(`${API_BASE}/admin/fasilitas/${id}`, {
     method: 'DELETE',
   });
 }
 
-// 🤝 5C. POTENSI KOLABORASI (Tabel terpisah: kst_collaborations)
+export const fetchFasilitas = fetchFacilities;
+export const createFasilitas = createFacility;
+export const updateFasilitas = updateFacility;
+export const deleteFasilitas = deleteFacility;
+
+// =========================================================================
+// 🤝 8. POTENSI KOLABORASI (/admin/kolaborasi)
+// =========================================================================
 export async function fetchCollaborations(includeInactive = true) {
   const qs = includeInactive ? '?include_inactive=true' : '';
-  return request(`${API_BASE}/kst/collaborations${qs}`);
+  return request(`${API_BASE}/admin/kolaborasi${qs}`);
 }
 
 export async function createCollaboration(payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/collaborations`, {
+  return request(`${API_BASE}/admin/kolaborasi`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -297,7 +317,7 @@ export async function createCollaboration(payload) {
 
 export async function updateCollaboration(id, payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/collaborations/${id}`, {
+  return request(`${API_BASE}/admin/kolaborasi/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -305,20 +325,27 @@ export async function updateCollaboration(id, payload) {
 
 export async function deleteCollaboration(id) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/collaborations/${id}`, {
+  return request(`${API_BASE}/admin/kolaborasi/${id}`, {
     method: 'DELETE',
   });
 }
 
-// 🏆 5D. PILAR DAMPAK (Tabel terpisah: kst_dampak)
+export const fetchKolaborasi = fetchCollaborations;
+export const createKolaborasi = createCollaboration;
+export const updateKolaborasi = updateCollaboration;
+export const deleteKolaborasi = deleteCollaboration;
+
+// =========================================================================
+// 🏆 9. PILAR DAMPAK (/admin/dampak)
+// =========================================================================
 export async function fetchDampak(includeInactive = true) {
   const qs = includeInactive ? '?include_inactive=true' : '';
-  return request(`${API_BASE}/kst/dampak${qs}`);
+  return request(`${API_BASE}/admin/dampak${qs}`);
 }
 
 export async function createDampak(payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/dampak`, {
+  return request(`${API_BASE}/admin/dampak`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -326,7 +353,7 @@ export async function createDampak(payload) {
 
 export async function updateDampak(id, payload) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/dampak/${id}`, {
+  return request(`${API_BASE}/admin/dampak/${id}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -334,14 +361,52 @@ export async function updateDampak(id, payload) {
 
 export async function deleteDampak(id) {
   categoriesCache = null;
-  return request(`${API_BASE}/kst/dampak/${id}`, {
+  return request(`${API_BASE}/admin/dampak/${id}`, {
     method: 'DELETE',
   });
 }
 
+// =========================================================================
+// 🏢 10. JENIS KAWASAN (/admin/jenis-kawasan)
+// =========================================================================
+export async function fetchJenisKawasan(includeInactive = true) {
+  const qs = includeInactive ? '?include_inactive=true' : '';
+  return request(`${API_BASE}/admin/jenis-kawasan${qs}`);
+}
 
-// Backward-compatible router helper
+export async function createJenisKawasan(payload) {
+  return request(`${API_BASE}/admin/jenis-kawasan`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateJenisKawasan(id, payload) {
+  return request(`${API_BASE}/admin/jenis-kawasan/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteJenisKawasan(id) {
+  return request(`${API_BASE}/admin/jenis-kawasan/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+export const fetchKawasan = fetchJenisKawasan;
+export const createKawasan = createJenisKawasan;
+export const updateKawasan = updateJenisKawasan;
+export const deleteKawasan = deleteJenisKawasan;
+
+export const fetchInstansi = fetchJenisKawasan;
+export const createInstansi = createJenisKawasan;
+export const updateInstansi = updateJenisKawasan;
+export const deleteInstansi = deleteJenisKawasan;
+
+// Helper router kategori umum
 export async function fetchCategoriesList(tipe, includeInactive = true) {
+  if (tipe === 'jenis_kawasan' || tipe === 'kawasan' || tipe === 'instansi') return fetchJenisKawasan(includeInactive);
   if (tipe === 'tipe_fasilitas') return fetchFacilities(includeInactive);
   if (tipe === 'dampak') return fetchDampak(includeInactive);
   if (tipe === 'potensi_kolaborasi') return fetchCollaborations(includeInactive);
@@ -349,6 +414,7 @@ export async function fetchCategoriesList(tipe, includeInactive = true) {
 }
 
 export async function createCategory(payload) {
+  if (payload.tipe === 'jenis_kawasan' || payload.tipe === 'kawasan' || payload.tipe === 'instansi') return createJenisKawasan(payload);
   if (payload.tipe === 'tipe_fasilitas') return createFacility(payload);
   if (payload.tipe === 'dampak') return createDampak(payload);
   if (payload.tipe === 'potensi_kolaborasi') return createCollaboration(payload);
@@ -356,6 +422,7 @@ export async function createCategory(payload) {
 }
 
 export async function updateCategory(id, payload, tipe) {
+  if (tipe === 'jenis_kawasan' || tipe === 'kawasan' || tipe === 'instansi') return updateJenisKawasan(id, payload);
   if (tipe === 'tipe_fasilitas') return updateFacility(id, payload);
   if (tipe === 'dampak') return updateDampak(id, payload);
   if (tipe === 'potensi_kolaborasi') return updateCollaboration(id, payload);
@@ -363,34 +430,40 @@ export async function updateCategory(id, payload, tipe) {
 }
 
 export async function deleteCategory(id, tipe) {
+  if (tipe === 'jenis_kawasan' || tipe === 'kawasan' || tipe === 'instansi') return deleteJenisKawasan(id);
   if (tipe === 'tipe_fasilitas') return deleteFacility(id);
   if (tipe === 'dampak') return deleteDampak(id);
   if (tipe === 'potensi_kolaborasi') return deleteCollaboration(id);
   return deleteTheme(id);
 }
 
+// =========================================================================
+// 🇮🇩 11. MASTER WILAYAH: PROVINSI & KABUPATEN / KOTA (/admin/wilayah)
+// =========================================================================
+export async function fetchMasterWilayah(adaLokasi = true) {
+  return request(`${API_BASE}/admin/wilayah?ada_lokasi=${adaLokasi}`);
+}
 
-// 🇮🇩 6. MASTER WILAYAH & PROVINSI
 export async function fetchProvinces() {
-  return request(`${API_BASE}/kst/wilayah/provinces`);
+  return request(`${API_BASE}/admin/wilayah/provinsi`);
 }
 
 export async function createProvince(payload) {
-  return request(`${API_BASE}/kst/wilayah/provinces`, {
+  return request(`${API_BASE}/admin/wilayah/provinsi`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export async function updateProvince(kode, payload) {
-  return request(`${API_BASE}/kst/wilayah/provinces/${kode}`, {
+  return request(`${API_BASE}/admin/wilayah/provinsi/${kode}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export async function deleteProvince(kode) {
-  return request(`${API_BASE}/kst/wilayah/provinces/${kode}`, {
+  return request(`${API_BASE}/admin/wilayah/provinsi/${kode}`, {
     method: 'DELETE',
   });
 }
@@ -400,26 +473,92 @@ export async function fetchRegencies(provinceKode, q) {
   if (provinceKode) query.append('province_kode', provinceKode);
   if (q) query.append('q', q);
   const qs = query.toString() ? `?${query.toString()}` : '';
-  return request(`${API_BASE}/kst/wilayah/regencies${qs}`);
+  return request(`${API_BASE}/admin/wilayah/kabupaten-kota${qs}`);
 }
 
 export async function createRegency(payload) {
-  return request(`${API_BASE}/kst/wilayah/regencies`, {
+  return request(`${API_BASE}/admin/wilayah/kabupaten-kota`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export async function updateRegency(kode, payload) {
-  return request(`${API_BASE}/kst/wilayah/regencies/${kode}`, {
+  return request(`${API_BASE}/admin/wilayah/kabupaten-kota/${kode}`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
 }
 
 export async function deleteRegency(kode) {
-  return request(`${API_BASE}/kst/wilayah/regencies/${kode}`, {
+  return request(`${API_BASE}/admin/wilayah/kabupaten-kota/${kode}`, {
     method: 'DELETE',
   });
 }
 
+export const fetchProvinsi = fetchProvinces;
+export const createProvinsi = createProvince;
+export const updateProvinsi = updateProvince;
+export const deleteProvinsi = deleteProvince;
+
+export const fetchKabupatenKota = fetchRegencies;
+export const createKabupatenKota = createRegency;
+export const updateKabupatenKota = updateRegency;
+export const deleteKabupatenKota = deleteRegency;
+
+// =========================================================================
+// 📸 12. GALERI MEDIA (FOTO & VIDEO) (/admin/galeri)
+// =========================================================================
+export async function fetchGaleri(lokasiId, tipe) {
+  const params = new URLSearchParams();
+  if (lokasiId) params.append('lokasi_id', lokasiId);
+  if (tipe) params.append('tipe', tipe);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  return request(`${API_BASE}/admin/galeri${qs}`);
+}
+
+export async function createGaleriItem(payload) {
+  return request(`${API_BASE}/admin/galeri`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateGaleriItem(id, payload) {
+  return request(`${API_BASE}/admin/galeri/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteGaleriItem(id) {
+  return request(`${API_BASE}/admin/galeri/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+// =========================================================================
+// 🌐 13. PUBLIC / FRONTEND API CLIENT HELPERS (/kst)
+// =========================================================================
+export async function fetchPublicMasterData() {
+  return request(`${API_BASE}/kst/master`);
+}
+
+export async function fetchPublicLokasiRingkas() {
+  return request(`${API_BASE}/kst/data-lokasi`);
+}
+
+export async function filterPublicLokasi(payload) {
+  return request(`${API_BASE}/kst/data-lokasi/filter`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchPublicLokasiDetail(idOrSlug) {
+  return request(`${API_BASE}/kst/data-lokasi/${idOrSlug}`);
+}
+
+export const fetchMasterData = fetchPublicMasterData;
+export const fetchLokasiRingkas = fetchPublicLokasiRingkas;
+export const filterLokasi = filterPublicLokasi;

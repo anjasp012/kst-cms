@@ -1,7 +1,7 @@
 /**
  * Helper API Wilayah Indonesia (Lokal Database KST & Kemendagri 2025/2026)
  * Menyediakan data resmi 38 Provinsi dan 514 Kota/Kabupaten di Indonesia
- * langsung dari database internal PostgreSQL (kst_db) tanpa ketergantungan API pihak ketiga.
+ * langsung dari database internal PostgreSQL (kst_provinsi & kst_kabupaten_kota).
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'
@@ -22,7 +22,7 @@ export async function fetchProvinces() {
   } catch (err) {
     console.error('Error fetching provinces from API, fallback to local:', err)
     try {
-      const resLocal = await fetch(`${API_BASE}/kst/wilayah/provinces`)
+      const resLocal = await fetch(`${API_BASE}/admin/wilayah/provinsi`)
       if (resLocal.ok) return await resLocal.json()
     } catch (_) {}
     return []
@@ -42,12 +42,15 @@ export async function fetchRegencies(provinceId) {
   } catch (err) {
     console.error(`Error fetching regencies for province ${provinceId}:`, err)
     try {
-      const resLocal = await fetch(`${API_BASE}/kst/wilayah/regencies?province_kode=${encodeURIComponent(provinceId)}`)
+      const resLocal = await fetch(`${API_BASE}/admin/wilayah/kabupaten-kota?province_kode=${encodeURIComponent(provinceId)}`)
       if (resLocal.ok) return await resLocal.json()
     } catch (_) {}
     return []
   }
 }
+
+export const fetchProvinsi = fetchProvinces
+export const fetchKabupatenKota = fetchRegencies
 
 /**
  * Mapping otomatis Nama / Kode Provinsi ke Wilayah Utama BRIN
@@ -116,7 +119,6 @@ export function formatCityName(name = '') {
     .replace(/\bkota\b/gi, 'Kota')
     .split(' ')
     .map(word => {
-      // Keep acronyms like DKI, DIY, IKN if needed, otherwise titlecase
       if (word.startsWith('Kab.') || word === 'Kota') return word
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     })
