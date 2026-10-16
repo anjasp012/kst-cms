@@ -1,3 +1,4 @@
+@import "@fontsource-variable/inter";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -24,14 +25,22 @@
     --input: 240 5.9% 90%;
     --ring: 240 5.9% 10%;
     --radius: 0.5rem;
+    --sidebar: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-ring: 240 5.9% 10%;
   }
 
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 5.5%;
+    --card: 240 10% 3.9%;
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 5.5%;
+    --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
     --primary: 0 0% 98%;
     --primary-foreground: 240 5.9% 10%;
@@ -46,35 +55,75 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
+    --sidebar: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 0 0% 98%;
+    --sidebar-primary-foreground: 240 5.9% 10%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 240 4.9% 83.9%;
   }
+}
 
+@layer base {
   * {
     @apply border-border;
   }
 
   body {
-    @apply bg-zinc-50 dark:bg-[#09090b] text-zinc-900 dark:text-[#f4f4f5] font-sans antialiased transition-colors duration-200 selection:bg-zinc-200 dark:selection:bg-zinc-800;
+    @apply bg-background text-foreground;
   }
+}
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #d4d4d8;
-    border-radius: 9999px;
-  }
-  .dark ::-webkit-scrollbar-thumb {
-    background: #27272a;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #a1a1aa;
-  }
-  .dark ::-webkit-scrollbar-thumb:hover {
-    background: #3f3f46;
-  }
+/* Custom Leaflet Pin & Point Styling */
+.custom-leaflet-pin.leaflet-div-icon,
+.custom-map-point.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Custom Leaflet Map Popup Card - Centered on marker, solid pure white */
+.custom-card-leaflet-popup {
+  margin-bottom: 8px;
+}
+
+.custom-card-leaflet-popup .leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-radius: 20px !important;
+  padding: 0 !important;
+  box-shadow: 0 20px 40px -6px rgba(0, 0, 0, 0.22), 0 8px 16px -4px rgba(0, 0, 0, 0.08) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  overflow: hidden !important;
+}
+
+.custom-card-leaflet-popup .leaflet-popup-content {
+  margin: 0 !important;
+  width: 380px !important;
+  max-width: calc(100vw - 48px) !important;
+  line-height: 1.5 !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+.custom-card-leaflet-popup .leaflet-popup-tip-container {
+  overflow: visible;
+}
+
+.custom-card-leaflet-popup .leaflet-popup-tip {
+  background: #ffffff !important;
+  box-shadow: none;
+}
+
+.custom-card-leaflet-popup .leaflet-popup-close-button {
+  display: none !important;
+}
+
+/* Hide scrollbars completely while keeping scroll functionality */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

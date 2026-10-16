@@ -2,13 +2,31 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,9 +39,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import {
   FlaskConical,
-  Cpu,
-  Handshake,
-  Award,
   Building2,
   Plus,
   Search,
@@ -48,47 +63,29 @@ const TYPE_CONFIG = {
   jenis_kawasan: {
     label: 'Jenis Kawasan',
     singular: 'Jenis Kawasan',
-    description: 'Kategori jenis kawasan dan entitas (contoh: Kawasan Sains (KST), BRIDA, BAPPERIDA, BAPPEDA).',
+    description: 'Kategori jenis kawasan dan entitas (contoh: Kawasan Sains dan Teknologi (KST), BRIDA, Kebun Raya).',
     icon: Building2,
     color: 'blue',
     badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
     placeholder: 'Contoh: Kawasan Sains (KST)',
   },
-  tema_riset: {
-    label: 'Tema Riset',
-    singular: 'Tema Riset',
-    description: 'Kategori fokus bidang riset dan keilmuan yang dikembangkan di KST (contoh: Energi & Material, Maritim, Kesehatan).',
+  fokus_riset: {
+    label: 'Fokus Riset',
+    singular: 'Fokus Riset',
+    description: 'Kategori fokus bidang riset dan keilmuan yang dikembangkan di kawasan (contoh: Energi & Material, Maritim, Kesehatan).',
     icon: FlaskConical,
     color: 'emerald',
     badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
     placeholder: 'Contoh: Kecerdasan Buatan & Robotika',
   },
-  tipe_fasilitas: {
-    label: 'Fasilitas',
-    singular: 'Fasilitas',
-    description: 'Jenis sarana dan prasarana riset yang disediakan oleh KST (contoh: Laboratorium, Pilot Plant, Observatorium).',
-    icon: Cpu,
-    color: 'blue',
-    badgeClass: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-    placeholder: 'Contoh: Cleanroom & Fabrikasi Mikro',
-  },
-  dampak: {
-    label: 'Dampak',
-    singular: 'Dampak',
-    description: 'Pilar dampak strategis kawasan KST terhadap ilmu pengetahuan, daya saing industri, dan kesejahteraan masyarakat.',
-    icon: Award,
-    color: 'amber',
-    badgeClass: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-    placeholder: 'Contoh: Penguatan Iptek & Inovasi Daerah',
-  },
-  potensi_kolaborasi: {
-    label: 'Kolaborasi',
-    singular: 'Kolaborasi',
-    description: 'Sektor dan ekosistem mitra kerja sama strategis kawasan KST (contoh: Industri, Akademisi, Pemerintah, Komunitas).',
-    icon: Handshake,
-    color: 'purple',
-    badgeClass: 'bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-    placeholder: 'Contoh: Lembaga Riset Internasional',
+  tema_riset: {
+    label: 'Fokus Riset',
+    singular: 'Fokus Riset',
+    description: 'Kategori fokus bidang riset dan keilmuan yang dikembangkan di kawasan (contoh: Energi & Material, Maritim, Kesehatan).',
+    icon: FlaskConical,
+    color: 'emerald',
+    badgeClass: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+    placeholder: 'Contoh: Kecerdasan Buatan & Robotika',
   },
 }
 
@@ -118,6 +115,7 @@ export default function CategoryManagementView({
     slug: '',
     deskripsi: '',
     is_active: true,
+    parent_id: 'none',
   })
 
   // Delete modal state
@@ -126,6 +124,15 @@ export default function CategoryManagementView({
 
   const config = TYPE_CONFIG[activeType] || TYPE_CONFIG.tema_riset
   const Icon = config.icon
+  const isFokusRiset = activeType === 'fokus_riset' || activeType === 'tema_riset'
+
+  // Parent candidates for hierarchical jenis_kawasan (e.g. Kawasan, BRIDA, Kebun Raya)
+  const parentCandidates = useMemo(() => {
+    if (activeType !== 'jenis_kawasan') return []
+    return items.filter(
+      (it) => !it.parent_id && (!editingItem || it.id !== editingItem.id)
+    )
+  }, [items, editingItem, activeType])
 
   // Load items from API
   const loadItems = useCallback(async () => {
@@ -149,16 +156,25 @@ export default function CategoryManagementView({
     loadItems()
   }, [loadItems])
 
+  // Items to display in the table (for jenis_kawasan: all utama/parent on top, followed by children)
+  const displayableItems = useMemo(() => {
+    if (activeType !== 'jenis_kawasan') return items
+    const utamaItems = items.filter((it) => !it.parent_id)
+    const childItems = items.filter((it) => Boolean(it.parent_id))
+    return [...utamaItems, ...childItems]
+  }, [items, activeType])
+
   // Filtered by search
   const filteredItems = useMemo(() => {
-    if (!search.trim()) return items
+    if (!search.trim()) return displayableItems
     const q = search.toLowerCase()
-    return items.filter(
+    return displayableItems.filter(
       (it) =>
         it.nama?.toLowerCase().includes(q) ||
-        it.slug?.toLowerCase().includes(q)
+        it.slug?.toLowerCase().includes(q) ||
+        it.parent_nama?.toLowerCase().includes(q)
     )
-  }, [items, search])
+  }, [displayableItems, search])
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
@@ -183,6 +199,7 @@ export default function CategoryManagementView({
       slug: '',
       deskripsi: '',
       is_active: true,
+      parent_id: 'none',
     })
     setFormOpen(true)
   }
@@ -194,6 +211,7 @@ export default function CategoryManagementView({
       slug: item.slug || '',
       deskripsi: item.deskripsi || '',
       is_active: Boolean(item.is_active),
+      parent_id: item.parent_id || 'none',
     })
     setFormOpen(true)
   }
@@ -220,16 +238,41 @@ export default function CategoryManagementView({
         tipe: activeType,
         nama: formData.nama.trim(),
         slug: formData.slug.trim() || slugify(formData.nama),
-        deskripsi: formData.deskripsi?.trim() || null,
         is_active: Boolean(formData.is_active),
       }
 
+      if (!isFokusRiset) {
+        payload.deskripsi = formData.deskripsi?.trim() || null
+      }
+
+      if (activeType === 'jenis_kawasan') {
+        payload.parent_id =
+          formData.parent_id && formData.parent_id !== 'none'
+            ? formData.parent_id
+            : null
+      }
+
       if (editingItem) {
-        await updateCategory(editingItem.id, payload, activeType)
+        const updated = await updateCategory(editingItem.id, payload, activeType)
         toast.success(`${config.singular} berhasil diperbarui`)
+        // Optimistically update items state so UI reflects the new description immediately
+        setItems((prev) =>
+          prev.map((it) =>
+            it.id === editingItem.id
+              ? {
+                ...it,
+                ...payload,
+                ...(updated && typeof updated === 'object' ? updated : {}),
+              }
+              : it
+          )
+        )
       } else {
-        await createCategory(payload)
+        const created = await createCategory(payload)
         toast.success(`${config.singular} baru berhasil ditambahkan`)
+        if (created && created.id) {
+          setItems((prev) => [...prev, created])
+        }
       }
 
       setFormOpen(false)
@@ -290,253 +333,273 @@ export default function CategoryManagementView({
               placeholder={`Cari ${config.singular.toLowerCase()}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 h-9 text-xs bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+              className="pl-8"
             />
           </div>
 
           <Button
             onClick={handleOpenAdd}
             size="sm"
-            className="h-9 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-sm whitespace-nowrap flex-shrink-0"
+            className="gap-1.5 whitespace-nowrap"
           >
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            <Plus className="w-3.5 h-3.5" />
             Tambah {config.singular}
           </Button>
         </div>
       </div>
 
       {/* Data Table */}
-      <Card className="border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-xs">
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center gap-2 text-zinc-400">
-            <Loader2 className="w-6 h-6 animate-spin text-zinc-500" />
-            <span className="text-xs font-mono">Memuat data {config.label}...</span>
-          </div>
-        ) : filteredItems.length === 0 ? (
-          <div className="py-16 text-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mx-auto text-zinc-400">
-              <Icon className="w-5 h-5" />
-            </div>
-            <div className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              {search ? 'Tidak ada data yang cocok dengan pencarian' : `Belum ada data ${config.label}`}
-            </div>
-            <p className="text-[11px] text-zinc-400">
-              Klik tombol &quot;Tambah {config.singular}&quot; untuk menambahkan data baru.
-            </p>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 text-zinc-500 font-mono">
-                  <th className="py-3 px-4 w-12 text-center">NO</th>
-                  <th className="py-3 px-4 w-48">NAMA</th>
-                  <th className="py-3 px-4 min-w-[200px]">DESKRIPSI SINGKAT</th>
-                  <th className="py-3 px-4 font-mono w-36">SLUG</th>
-                  <th className="py-3 px-4 text-center w-28">STATUS</th>
-                  <th className="py-3 px-4 text-right w-24">AKSI</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/60">
-                {paginatedItems.map((item, idx) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40 transition-colors group"
-                  >
-                    <td className="py-3 px-4 text-center text-zinc-400 font-mono text-[11px]">
-                      {(currentPage - 1) * itemsPerPage + idx + 1}
-                    </td>
-                    <td className="py-3 px-4 font-medium text-zinc-900 dark:text-zinc-100">
-                      <div className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-zinc-400 dark:bg-zinc-600 group-hover:bg-zinc-900 dark:group-hover:bg-zinc-100 transition-colors flex-shrink-0" />
-                        <span className="font-semibold">{item.nama}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
+      <div className="rounded-md border bg-card overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12 text-center">#</TableHead>
+              <TableHead className="w-56">Nama</TableHead>
+              {activeType === 'jenis_kawasan' && (
+                <TableHead className="w-44">Kategori Induk</TableHead>
+              )}
+              {!isFokusRiset && <TableHead>Deskripsi</TableHead>}
+              <TableHead className="w-40 font-mono">Slug</TableHead>
+              <TableHead className="w-24 text-center">Status</TableHead>
+              <TableHead className="w-28 text-right pr-4">Aksi</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={activeType === 'jenis_kawasan' ? 7 : (isFokusRiset ? 5 : 6)} className="p-8 text-center text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2 text-muted-foreground" />
+                  <span>Memuat data...</span>
+                </TableCell>
+              </TableRow>
+            ) : filteredItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={activeType === 'jenis_kawasan' ? 7 : (isFokusRiset ? 5 : 6)} className="p-8 text-center text-muted-foreground">
+                  Tidak ada data.
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedItems.map((item, idx) => (
+                <TableRow key={item.id}>
+                  <TableCell className="text-center font-mono text-muted-foreground text-[11px]">
+                    {(currentPage - 1) * itemsPerPage + idx + 1}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground text-xs">
+                      {item.nama}
+                    </div>
+                  </TableCell>
+                  {activeType === 'jenis_kawasan' && (
+                    <TableCell>
+                      {item.parent_nama ? (
+                        <Badge variant="secondary" className="font-normal text-[11px] gap-1">
+                          <span className="opacity-60">↳</span> {item.parent_nama}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground/60 text-xs font-mono">
+                          -
+                        </span>
+                      )}
+                    </TableCell>
+                  )}
+                  {!isFokusRiset && (
+                    <TableCell className="text-muted-foreground text-xs">
                       {item.deskripsi ? (
                         <span className="line-clamp-2 leading-relaxed">{item.deskripsi}</span>
                       ) : (
-                        <span className="text-zinc-400 dark:text-zinc-600 italic text-[11px]">- Belum ada deskripsi -</span>
+                        <span className="text-muted-foreground/60 italic text-[11px]">- Belum ada deskripsi -</span>
                       )}
-                    </td>
-                    <td className="py-3 px-4 text-zinc-500 dark:text-zinc-400 font-mono text-[11px]">
-                      {item.slug}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleActive(item)}
-                        title="Klik untuk mengubah status"
-                        className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full transition-colors cursor-pointer"
+                    </TableCell>
+                  )}
+                  <TableCell className="text-muted-foreground font-mono text-[11px]">
+                    {item.slug}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleActive(item)}
+                      title="Klik untuk mengubah status"
+                      className="inline-flex cursor-pointer transition-opacity hover:opacity-80"
+                    >
+                      {item.is_active ? (
+                        <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 text-[10px] font-mono">
+                          Aktif
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground border-border text-[10px] font-mono">
+                          Nonaktif
+                        </Badge>
+                      )}
+                    </button>
+                  </TableCell>
+                  <TableCell className="pr-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={() => handleOpenEdit(item)}
+                        title="Edit"
                       >
-                        {item.is_active ? (
-                          <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Aktif
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-zinc-500 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 rounded-full">
-                            <XCircle className="w-3 h-3" />
-                            Nonaktif
-                          </span>
-                        )}
-                      </button>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEdit(item)}
-                          title="Edit"
-                          className="h-7 w-7 text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
-                        >
-                          <Edit className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteTarget(item)}
-                          title="Hapus"
-                          className="h-7 w-7 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => setDeleteTarget(item)}
+                        title="Hapus"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
 
-          {/* Pagination Controls */}
-          {filteredItems.length > 0 && (
-            <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs text-zinc-500">
-              <div>
-                Menampilkan {(currentPage - 1) * itemsPerPage + 1} -{' '}
-                {Math.min(currentPage * itemsPerPage, filteredItems.length)} dari{' '}
-                {filteredItems.length} {config.label}
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  className="h-8 px-2.5 text-xs"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Prev
-                </Button>
-                <span className="px-2 font-mono text-[11px]">
-                  {currentPage} / {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  className="h-8 px-2.5 text-xs"
-                >
-                  Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
-                </Button>
-              </div>
+        {/* Pagination Controls */}
+        {filteredItems.length > 0 && (
+          <div className="p-3 border-t flex items-center justify-between text-xs text-muted-foreground">
+            <div>
+              Menampilkan {(currentPage - 1) * itemsPerPage + 1} -{' '}
+              {Math.min(currentPage * itemsPerPage, filteredItems.length)} dari{' '}
+              {filteredItems.length} {config.label.toLowerCase()}
             </div>
-          )}
-        </>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              >
+                <ChevronLeft className="w-3.5 h-3.5 mr-1" /> Prev
+              </Button>
+              <span className="px-2 font-mono text-[11px] text-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              >
+                Next <ChevronRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            </div>
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* Add / Edit Dialog Modal */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-w-md border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl p-0 overflow-hidden">
-          {/* Header */}
-          <div className="p-5 pb-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center text-zinc-100 dark:text-zinc-900 shadow-sm flex-shrink-0">
-                <Icon className="w-4 h-4" />
-              </div>
-              <div>
-                <DialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                  {editingItem ? `Edit ${config.singular}` : `Tambah ${config.singular} Baru`}
-                </DialogTitle>
-              </div>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingItem ? `Edit ${config.singular}` : `Tambah ${config.singular} Baru`}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSave} className="space-y-4">
+            {/* 1. Nama */}
+            <div className="space-y-2">
+              <Label htmlFor="cat-nama">
+                Nama {config.singular} <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="cat-nama"
+                required
+                autoFocus
+                value={formData.nama}
+                onChange={handleNameChange}
+                placeholder={config.placeholder}
+              />
             </div>
-          </div>
 
-          <form onSubmit={handleSave}>
-            <div className="p-5 space-y-4">
-              {/* 1. Nama */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Nama {config.singular} <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  required
-                  autoFocus
-                  value={formData.nama}
-                  onChange={handleNameChange}
-                  placeholder={config.placeholder}
-                  className="h-9 text-xs bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
-                />
+            {/* Kategori Induk (Parent) - Khusus Jenis Kawasan */}
+            {activeType === 'jenis_kawasan' && (
+              <div className="space-y-2">
+                <Label htmlFor="cat-parent">Kategori Induk (Parent)</Label>
+                <Select
+                  value={formData.parent_id || 'none'}
+                  onValueChange={(val) =>
+                    setFormData((prev) => ({ ...prev, parent_id: val }))
+                  }
+                >
+                  <SelectTrigger id="cat-parent">
+                    <SelectValue placeholder="Pilih Kategori Induk" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">-- Tanpa Induk (-) --</SelectItem>
+                    {parentCandidates.map((parent) => (
+                      <SelectItem key={parent.id} value={parent.id}>
+                        {parent.nama}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  Pilih induk jika entitas ini merupakan sub-kategori (misal: turunan dari Kawasan).
+                </p>
               </div>
+            )}
 
-              {/* 2. Slug */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Slug Identifier <span className="text-zinc-400 font-normal font-mono text-[10px]">(Otomatis)</span>
-                </Label>
-                <Input
-                  value={formData.slug}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
-                  placeholder="slug-otomatis"
-                  className="h-9 text-xs font-mono bg-zinc-50/60 dark:bg-zinc-900/60 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
-                />
-              </div>
+            {/* 2. Slug */}
+            <div className="space-y-2">
+              <Label htmlFor="cat-slug">
+                Slug Identifier <span className="text-muted-foreground font-normal font-mono text-[10px]">(Otomatis)</span>
+              </Label>
+              <Input
+                id="cat-slug"
+                value={formData.slug}
+                onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+                placeholder="slug-otomatis"
+                className="font-mono text-muted-foreground"
+              />
+            </div>
 
-              {/* 3. Deskripsi */}
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                  Deskripsi Singkat <span className="text-zinc-400 font-normal">(Opsional)</span>
+            {/* 3. Deskripsi (Hanya untuk kategori yang membutuhkan deskripsi, Fokus Riset tidak perlu) */}
+            {!isFokusRiset && (
+              <div className="space-y-2">
+                <Label htmlFor="cat-deskripsi">
+                  Deskripsi <span className="text-muted-foreground font-normal">(Opsional)</span>
                 </Label>
-                <textarea
-                  rows={2}
+                <Textarea
+                  id="cat-deskripsi"
+                  rows={3}
                   value={formData.deskripsi || ''}
                   onChange={(e) => setFormData((prev) => ({ ...prev, deskripsi: e.target.value }))}
                   placeholder={`Penjelasan ringkas mengenai ${config.singular.toLowerCase()} ini...`}
-                  className="w-full p-2.5 rounded-md text-xs bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-400 leading-relaxed resize-none"
+                  className="resize-none leading-relaxed"
                 />
               </div>
+            )}
 
-              <div className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
-                <div className="space-y-0.5">
-                  <div className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
-                    Status Aktif
-                  </div>
-                  <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Tampilkan sebagai opsi pilihan di formulir KST
-                  </div>
+            <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+              <div className="space-y-0.5">
+                <div className="text-xs font-medium text-foreground">
+                  Status Aktif
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_active}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
-                    className="sr-only peer"
-                  />
-                  <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
-                </label>
+                <div className="text-[11px] text-muted-foreground">
+                  Tampilkan sebagai opsi pilihan di formulir
+                </div>
               </div>
+              <input
+                type="checkbox"
+                checked={formData.is_active}
+                onChange={(e) => setFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
             </div>
 
-            <div className="p-4 px-5 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50 flex items-center justify-end gap-2">
+            <DialogFooter className="gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setFormOpen(false)}
-                className="text-xs h-9 border-zinc-200 dark:border-zinc-800"
               >
                 Batal
               </Button>
@@ -544,7 +607,6 @@ export default function CategoryManagementView({
                 type="submit"
                 size="sm"
                 disabled={saving}
-                className="h-9 bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 text-xs font-medium shadow-sm px-4"
               >
                 {saving ? (
                   <>
@@ -555,31 +617,28 @@ export default function CategoryManagementView({
                   'Simpan Perubahan'
                 )}
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Alert Dialog */}
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent className="bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
+        <AlertDialogContent className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              Hapus {config.singular}?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-zinc-500 dark:text-zinc-400">
-              Apakah Anda yakin ingin menghapus data &quot;<strong>{deleteTarget?.nama}</strong>&quot;?
-              Tindakan ini tidak dapat dibatalkan.
+            <AlertDialogTitle className="text-sm font-semibold">Hapus {config.singular}?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs">
+              Data <strong>{deleteTarget?.nama}</strong> akan dihapus dari database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="text-xs">Batal</AlertDialogCancel>
+            <AlertDialogCancel className="h-8 text-xs">Batal</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deleting}
-              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium"
+              className="h-8 text-xs bg-rose-600 hover:bg-rose-700 text-white"
             >
-              {deleting ? 'Menghapus...' : 'Hapus Sekarang'}
+              {deleting ? 'Menghapus...' : 'Hapus'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

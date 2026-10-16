@@ -1,431 +1,650 @@
-import { useState } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
 } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Building2, 
-  CheckCircle2, 
-  Clock, 
-  FlaskConical, 
-  Sparkles, 
-  Award, 
-  Users, 
-  Image as ImageIcon,
+import {
+  Building2,
   MapPin,
-  ExternalLink,
-  Info,
-  Layers
+  Phone,
+  Mail,
+  Globe,
+  FileText,
+  TreePine,
+  FlaskConical,
+  ShieldCheck,
+  Handshake,
+  Layers,
+  Compass,
+  ChevronLeft,
+  ChevronRight,
+  Atom,
+  Cpu,
+  Sprout,
+  Users,
+  ExternalLink
 } from 'lucide-react'
-import { getImageUrl } from '@/lib/utils'
+import { getImageUrl } from '@/lib/helpers'
+
+const ICON_MAP = {
+  Building2,
+  MapPin,
+  Phone,
+  Mail,
+  Globe,
+  FileText,
+  TreePine,
+  FlaskConical,
+  ShieldCheck,
+  Handshake,
+  Layers,
+  Compass,
+  Atom,
+  Cpu,
+  Sprout,
+  Users,
+  ExternalLink,
+}
+
+function getFieldIcon(iconName, defaultIcon = FileText) {
+  if (!iconName) return defaultIcon
+  return ICON_MAP[iconName] || defaultIcon
+}
+
+function DynamicFieldBlock({ field }) {
+  if (!field) return null
+  const isList = Array.isArray(field.value)
+  const hasValue = isList
+    ? field.value.length > 0 && field.value.some(v => v != null && String(v).trim() !== '')
+    : field.value != null && String(field.value).trim() !== ''
+
+  if (!hasValue) return null
+
+  const IconComp = getFieldIcon(field.icon, FileText)
+
+  return (
+    <div className="space-y-2 pt-2">
+      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+        <IconComp className="w-4 h-4 text-zinc-600 dark:text-zinc-400 shrink-0" />
+        <span>{field.label || field.nama || 'Informasi'}</span>
+      </h3>
+      {isList ? (
+        <ul className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300 list-disc list-inside">
+          {field.value.map((item, idx) => {
+            const strVal = typeof item === 'string' ? item : JSON.stringify(item)
+            return (
+              <li key={idx} className="leading-relaxed">
+                {strVal.includes('<') ? (
+                  <span
+                    className="inline-block prose prose-xs dark:prose-invert max-w-none [&_p]:inline [&_ul]:list-disc [&_ul]:pl-4"
+                    dangerouslySetInnerHTML={{ __html: strVal }}
+                  />
+                ) : (
+                  strVal
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      ) : typeof field.value === 'string' && field.value.includes('<') ? (
+        <div
+          className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed prose prose-xs dark:prose-invert max-w-none [&_p]:mb-1.5 [&_a]:text-blue-600 [&_a]:underline"
+          dangerouslySetInnerHTML={{ __html: field.value }}
+        />
+      ) : (
+        <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-line text-justify">
+          {String(field.value)}
+        </p>
+      )}
+    </div>
+  )
+}
 
 export default function LocationDetailModal({ kst, open, onClose }) {
   const [activeTab, setActiveTab] = useState('profil')
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0)
+  const [scrollProgress, setScrollProgress] = useState(0)
+  const thumbRefs = useRef([])
+  const thumbScrollRef = useRef(null)
+
+  // Drag to scroll state for mouse on desktop
+  const isDragging = useRef(false)
+  const startX = useRef(0)
+  const scrollLeftStart = useRef(0)
+  const hasDragged = useRef(false)
+
+  const handleMouseDown = (e) => {
+    isDragging.current = true
+    hasDragged.current = false
+    startX.current = e.pageX - (thumbScrollRef.current?.offsetLeft || 0)
+    scrollLeftStart.current = thumbScrollRef.current?.scrollLeft || 0
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current || !thumbScrollRef.current) return
+    const x = e.pageX - (thumbScrollRef.current.offsetLeft || 0)
+    const walk = (x - startX.current) * 1.3
+    if (Math.abs(walk) > 4) {
+      hasDragged.current = true
+    }
+    thumbScrollRef.current.scrollLeft = scrollLeftStart.current - walk
+  }
+
+  const handleMouseUp = () => {
+    isDragging.current = false
+  }
+
+  // Reset active photo index and scroll when modal opens or location changes
+  useEffect(() => {
+    setActivePhotoIdx(0)
+    setScrollProgress(0)
+    if (thumbScrollRef.current) {
+      thumbScrollRef.current.scrollLeft = 0
+    }
+  }, [kst?.id, open])
+
+  // Track thumbnail slider scroll
+  const handleThumbScroll = (e) => {
+    const el = e.currentTarget
+    const max = el.scrollWidth - el.clientWidth
+    if (max > 0) {
+      setScrollProgress(el.scrollLeft / max)
+    }
+  }
+
+  // Auto scroll active thumbnail into view
+  useEffect(() => {
+    if (thumbRefs.current && thumbRefs.current[activePhotoIdx]) {
+      thumbRefs.current[activePhotoIdx]?.scrollIntoView?.({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center'
+      })
+    }
+  }, [activePhotoIdx])
+
+  // Prepare photos gallery - must be called unconditionally before any return
+  const photos = useMemo(() => {
+    if (!kst) return []
+    const list = []
+    if (kst.thumbnail_url) {
+      list.push({
+        url: getImageUrl(kst.thumbnail_url),
+        caption: 'Foto Utama / Tampak Depan'
+      })
+    }
+    if (Array.isArray(kst.galeri)) {
+      kst.galeri.forEach((item, idx) => {
+        const u = typeof item === 'string' ? item : item.url
+        const c = typeof item === 'object' && item.caption ? item.caption : (item.keterangan || `Foto Dokumentasi ${idx + 1}`)
+        if (u) {
+          const resolvedUrl = getImageUrl(u)
+          // avoid duplicates with thumbnail
+          if (!list.some(p => p.url === resolvedUrl)) {
+            list.push({ url: resolvedUrl, caption: c })
+          }
+        }
+      })
+    }
+    if (list.length === 0) {
+      list.push({
+        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80',
+        caption: 'Foto Kawasan'
+      })
+    }
+    return list
+  }, [kst])
 
   if (!kst) return null
 
-  const tabs = [
-    { id: 'profil', label: 'Profil', icon: Building2 },
-    { id: 'fasilitas', label: 'Fasilitas', icon: FlaskConical },
-    { id: 'riset', label: 'Riset', icon: Sparkles },
-    { id: 'dampak', label: 'Dampak', icon: Award },
-    { id: 'kolaborasi', label: 'Kolaborasi', icon: Users },
-    { id: 'galeri', label: 'Galeri (Foto & Video)', icon: ImageIcon },
-  ]
+  const categoryName = (kst.jenis_kawasan_nama || kst.jenis_kawasan || kst.kawasan_nama || kst.instansi_nama || 'KST').trim()
+  const isKebunRaya = categoryName.toLowerCase().includes('kebun') || categoryName.toLowerCase().includes('kr ') || (kst.nama || '').toLowerCase().includes('kr ')
+  const isBrida = categoryName.toLowerCase().includes('brida') || categoryName.toLowerCase().includes('bappeda') || categoryName.toLowerCase().includes('bapperida')
+
+  const safePhotoIdx = (activePhotoIdx >= 0 && activePhotoIdx < photos.length) ? activePhotoIdx : 0
+  const activePhoto = photos[safePhotoIdx] || photos[0] || { url: '', caption: '' }
+
+  // Category Badge Style
+  const getBadgeConfig = () => {
+    if (isKebunRaya) {
+      return {
+        bg: 'bg-[#14532d] text-white',
+        icon: Sprout,
+        label: categoryName || 'Kebun Raya'
+      }
+    }
+    if (isBrida) {
+      return {
+        bg: 'bg-[#991b1b] text-white',
+        icon: Atom,
+        label: categoryName || 'BRIDA'
+      }
+    }
+    return {
+      bg: 'bg-[#1e3a8a] text-white',
+      icon: Building2,
+      label: categoryName || 'Kawasan Riset (KST)'
+    }
+  }
+
+  const badgeConfig = getBadgeConfig()
+  const BadgeIcon = badgeConfig.icon
+
+  // Sub-tabs label
+  const tabProfilLabel = isBrida ? 'Profil & Kontak' : (isKebunRaya ? 'Profil & Botani' : 'Profil & Riset')
+  const tabEkosistemLabel = isKebunRaya ? 'Tata Kelola & Layanan' : (isBrida ? 'Layanan & Mitra Inovasi' : 'Ekosistem & Layanan')
+
+  // Extra fields grouping on client side (no hardcoded API wrapper)
+  const extraList = Array.isArray(kst.extra_fields) ? kst.extra_fields : []
+
+  const isEcosystemField = (ef) => {
+    const text = `${ef.slug || ''} ${ef.label || ef.nama || ''}`.toLowerCase()
+    // For BRIDA, keep saluran-digital on Profil tab
+    if (isBrida && (text.includes('saluran') || text.includes('digital') || text.includes('kontak'))) {
+      return false
+    }
+    return [
+      'ekosistem', 'organisasi', 'or-terkait', 'pusat-riset', 'pr-terkait',
+      'layanan', 'pemanfaatan', 'saluran', 'digital', 'mitra', 'tata-kelola',
+      'tata kelola', 'legalitas', 'kontak', 'kewenangan', 'pic'
+    ].some(k => text.includes(k))
+  }
+
+  const profileExtraFields = extraList.filter(ef => !isEcosystemField(ef))
+  const ecosystemExtraFields = extraList.filter(ef => isEcosystemField(ef))
+
+  // Proportional to 3.5 visible thumbnails out of total photos
+  const indicatorWidth = photos.length <= 3.5
+    ? 100
+    : Math.max(16, Math.min(50, Math.round((3.5 / photos.length) * 100)))
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto p-0 border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-xl shadow-lg">
-        
-        {/* Simple Header with right padding for the close X button */}
-        <div className="p-5 pr-12 border-b border-zinc-200 dark:border-zinc-800 flex items-start gap-4 bg-zinc-50/50 dark:bg-zinc-950/50">
-          <div className="w-14 h-14 rounded-lg bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden flex items-center justify-center flex-shrink-0">
-            {kst.thumbnail_url ? (
-              <img 
-                src={getImageUrl(kst.thumbnail_url)} 
-                alt={kst.nama} 
-                className="w-full h-full object-cover"
-                onError={(e) => { e.currentTarget.style.display = 'none' }}
-              />
-            ) : (
-              <Building2 className="w-6 h-6 text-zinc-400" />
-            )}
-          </div>
+      <DialogContent className="max-w-[640px] sm:max-w-[720px] w-full max-h-[90vh] overflow-y-auto no-scrollbar p-0 border border-zinc-200 dark:border-zinc-800 rounded-3xl bg-white dark:bg-zinc-900 shadow-2xl">
 
-          <div className="space-y-1 min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wide">
-                {kst.wilayah}
-              </span>
-              <span className="text-zinc-300 dark:text-zinc-700">&bull;</span>
-              <span className="text-[11px] font-mono text-zinc-500">
-                {kst.pengelola || 'BRIN'}
-              </span>
+        <div className="p-5 sm:p-6 pb-6 space-y-3.5">
+          {/* 1. Header: Pill Badge & Title & Alamat */}
+          <div className="space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide shadow-xs"
+              style={{ backgroundColor: isKebunRaya ? '#14532d' : isBrida ? '#881337' : '#1e3a8a', color: '#fff' }}>
+              <BadgeIcon className="w-3.5 h-3.5" />
+              <span>{badgeConfig.label}</span>
             </div>
-            <DialogTitle className="text-lg font-bold text-zinc-900 dark:text-zinc-100 tracking-tight truncate">
+
+            <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight">
               {kst.nama}
-            </DialogTitle>
-            <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500 font-mono pt-0.5">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-zinc-400" />
-                {kst.kota_provinsi}
-              </span>
-              <span>&bull;</span>
-              <span>Tahun: {kst.tahun_operasi || 2021}</span>
-              <span>&bull;</span>
-              <span className="text-zinc-700 dark:text-zinc-300">Status: {kst.status || 'Aktif'}</span>
+            </h2>
+
+            <div className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 font-normal">
+              <MapPin className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <span className="leading-snug">{kst.alamat || kst.kota_provinsi || kst.wilayah || 'Indonesia'}</span>
             </div>
           </div>
-        </div>
 
-        {/* Clean Neutral Tabs */}
-        <div className="flex items-center gap-1 px-5 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-x-auto">
-          {tabs.map((t) => {
-            const Icon = t.icon
-            const active = activeTab === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-medium border-b-2 transition-all whitespace-nowrap cursor-pointer ${
-                  active
-                    ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-semibold'
-                    : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{t.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Tab Body */}
-        <div className="p-5">
-          {/* TAB 1: PROFIL */}
-          {activeTab === 'profil' && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <div className="text-[11px] font-mono text-zinc-400 uppercase">
-                  Profil <strong className="font-bold text-zinc-700 dark:text-zinc-200">Jelajahi Kawasan Terpadu BRIN</strong>
-                </div>
-                <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{kst.nama} &bull; <span className="text-zinc-500 text-xs font-normal">{kst.kota_provinsi}</span></div>
-                <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed bg-zinc-50 dark:bg-zinc-950/60 p-3.5 rounded-lg border border-zinc-200 dark:border-zinc-800">
-                  {kst.deskripsi_profil || 'Kawasan ini menjadi pusat riset, pengembangan, dan kolaborasi yang mendukung potensi unggulan wilayah serta kebutuhan strategis Indonesia.'}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                {/* Peran Kawasan */}
-                <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1.5">
-                  <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Peran Kawasan</span>
-                  </div>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                    {kst.peran_kawasan || 'Mendukung pengembangan riset, inovasi, dan penerapan teknologi di wilayah ini.'}
-                  </p>
-                </div>
-
-                {/* Fokus Utama */}
-                <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1.5">
-                  <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Fokus Utama</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {kst.fokus_utama && kst.fokus_utama.length > 0 ? (
-                      kst.fokus_utama.map((f, i) => (
-                        <span 
-                          key={i}
-                          className="px-2 py-0.5 rounded text-[10px] font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
-                        >
-                          {f}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-xs text-zinc-400">-</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Terhubung Dengan */}
-                <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1.5">
-                  <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-zinc-400" />
-                    <span>Terhubung dengan</span>
-                  </div>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                    {kst.terhubung_dengan || 'Peneliti, industri, pemerintah, komunitas, dan mitra pendidikan.'}
-                  </p>
-                </div>
-              </div>
+          {/* 2. Photo Gallery: Compact Preview, Caption/Counter, 3.5-Item Thumbnail Slider & Indicator */}
+          <div className="space-y-2">
+            {/* Compact Preview Image */}
+            <div className="relative w-full h-40 sm:h-44 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 select-none shadow-xs">
+              <img
+                src={activePhoto?.url || ''}
+                alt={activePhoto?.caption || kst?.nama || 'Foto Kawasan'}
+                className="w-full h-full object-cover transition-opacity duration-200"
+                loading="eager"
+                onError={(e) => {
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80'
+                }}
+              />
             </div>
-          )}
 
-          {/* TAB 2: FASILITAS */}
-          {activeTab === 'fasilitas' && (
-            <div className="space-y-3">
-              {kst.fasilitas && kst.fasilitas.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {kst.fasilitas.map((f, idx) => (
-                    <div key={idx} className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                          <FlaskConical className="w-3.5 h-3.5 text-zinc-400" />
-                          <span>{f.nama || f}</span>
-                        </span>
-                        {f.tipe && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-                            {f.tipe}
-                          </span>
-                        )}
-                      </div>
-                      {f.deskripsi && (
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">{f.deskripsi}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-6 text-center text-xs text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
-                  Belum ada fasilitas terdaftar.
-                </div>
-              )}
-
-              {/* Bottom Note & Pills */}
-              <div className="p-3 rounded-lg bg-zinc-100/70 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-zinc-500">
-                <div className="flex items-center gap-1.5 text-[11px]">
-                  <Info className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                  <span>Fasilitas ini digunakan untuk mendukung riset dan pengembangan teknologi sesuai fokus <strong className="font-bold text-zinc-700 dark:text-zinc-300">Jelajahi Kawasan Terpadu BRIN</strong>.</span>
-                </div>
+            {/* Caption & Counter Row with Next/Prev Controls */}
+            <div className="flex items-center justify-between px-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="truncate max-w-[70%] font-medium text-zinc-600 dark:text-zinc-300">
+                {activePhoto?.caption || 'Foto Kawasan'}
+              </span>
+              {photos.length > 1 && (
                 <div className="flex items-center gap-1 shrink-0">
-                  {['Pengujian', 'Analisis', 'Validasi', 'Kolaborasi Riset'].map((tag, i) => (
-                    <span key={i} className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 3: RISET */}
-          {activeTab === 'riset' && (
-            <div className="space-y-3">
-              {kst.riset && kst.riset.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {kst.riset.map((r, idx) => (
-                    <div key={idx} className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5 text-zinc-400" />
-                          <span>{typeof r === 'string' ? r.replace(/^\d+[\.\)]\s*/, '') : (r.judul || '').replace(/^\d+[\.\)]\s*/, '')}</span>
-                        </span>
-                        {r.bidang && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-500 bg-zinc-100 dark:bg-zinc-800">
-                            {r.bidang}
-                          </span>
-                        )}
-                      </div>
-                      {r.deskripsi && (
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">{r.deskripsi}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-6 text-center text-xs text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
-                  Belum ada data riset terdaftar.
-                </div>
-              )}
-
-              {/* Bottom Info Row */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1">
-                  <div className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-zinc-400" />
-                    <span>Manfaat Riset</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500 leading-relaxed">
-                    {kst.manfaat_riset || 'Riset ini mendukung pengambilan keputusan, pengembangan teknologi, dan pemecahan masalah di wilayah terkait.'}
-                  </p>
-                </div>
-
-                <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1">
-                  <div className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                    <Layers className="w-3 h-3 text-zinc-400" />
-                    <span>Fokus Utama</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {(kst.fokus_utama || ['Pangan', 'Energi', 'Material', 'Teknologi Digital', 'Laut']).map((f, i) => (
-                      <span key={i} className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1">
-                  <div className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1">
-                    <FlaskConical className="w-3 h-3 text-zinc-400" />
-                    <span>Fasilitas Terhubung</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500 leading-relaxed">
-                    {kst.fasilitas && kst.fasilitas.length > 0
-                      ? kst.fasilitas.map(f => f.nama || f.tipe).filter(Boolean).join(', ')
-                      : (kst.fasilitas_terhubung || 'Laboratorium dan sarana riset terintegrasi kawasan.')}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 4: DAMPAK & DATA HIGHLIGHT */}
-          {activeTab === 'dampak' && (
-            <div className="space-y-3">
-              {kst.dampak && kst.dampak.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {kst.dampak.map((d, idx) => (
-                    <div key={idx} className="p-3.5 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-1">
-                      <div className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                        <Award className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>{d.judul || d}</span>
-                      </div>
-                      {d.keterangan && (
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">{d.keterangan}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-6 text-center text-xs text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
-                  Belum ada data dampak.
-                </div>
-              )}
-
-              {/* Data Highlight Metrik */}
-              <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-2">
-                <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wide">Data Highlight</div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                    <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      {kst.fasilitas?.length || 0}
-                    </div>
-                    <div className="text-[11px] text-zinc-500">Fasilitas</div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                    <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      {kst.riset?.length || 0}
-                    </div>
-                    <div className="text-[11px] text-zinc-500">Bidang Riset</div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                    <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      {kst.daftar_kolaborasi?.length || 0}
-                    </div>
-                    <div className="text-[11px] text-zinc-500">Program Kolaborasi</div>
-                  </div>
-                  <div className="p-2.5 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800">
-                    <div className="text-lg font-bold text-zinc-900 dark:text-zinc-100 font-mono">
-                      {new Set((kst.daftar_kolaborasi || []).map(d => d.mitra).filter(Boolean)).size || (kst.daftar_kolaborasi || []).length || 0}
-                    </div>
-                    <div className="text-[11px] text-zinc-500">Mitra</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 5: KOLABORASI */}
-          {activeTab === 'kolaborasi' && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <span className="text-xs font-mono uppercase text-zinc-400">Potensi Kolaborasi</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {kst.potensi_kolaborasi && kst.potensi_kolaborasi.length > 0 ? (
-                    kst.potensi_kolaborasi.map((k, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
-                        {k}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-zinc-400">-</span>
-                  )}
-                </div>
-              </div>
-
-              {kst.daftar_kolaborasi && kst.daftar_kolaborasi.length > 0 && (
-                <div className="space-y-2 pt-1">
-                  <span className="text-xs font-mono uppercase text-zinc-400">Daftar Kerjasama</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {kst.daftar_kolaborasi.map((item, idx) => (
-                      <div key={idx} className="p-3 rounded-lg bg-zinc-50 dark:bg-zinc-950/60 border border-zinc-200 dark:border-zinc-800 space-y-0.5">
-                        <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">{item.mitra || item}</div>
-                        {item.tipe && <span className="text-[10px] font-mono text-zinc-400">{item.tipe}</span>}
-                        {item.deskripsi && <p className="text-xs text-zinc-500 mt-1">{item.deskripsi}</p>}
-                      </div>
-                    ))}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActivePhotoIdx(prev => (prev === 0 ? photos.length - 1 : prev - 1))}
+                    className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                    aria-label="Foto Sebelumnya"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="font-mono text-zinc-400 dark:text-zinc-500 font-medium px-0.5">
+                    {safePhotoIdx + 1}/{photos.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActivePhotoIdx(prev => (prev === photos.length - 1 ? 0 : prev + 1))}
+                    className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                    aria-label="Foto Berikutnya"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               )}
             </div>
-          )}
 
-          {/* TAB 6: GALERI */}
-          {activeTab === 'galeri' && (
-            <div>
-              {kst.galeri && kst.galeri.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {kst.galeri.map((item, idx) => {
-                    const isObj = typeof item === 'object' && item !== null
-                    const url = isObj ? item.url : item
-                    const tipe = isObj ? (item.tipe || 'foto') : (
-                      (url && ['.mp4', '.webm', '.mov', '.m4v', '.ogg', '.avi', '.mkv'].some(ext => url.toLowerCase().endsWith(ext))) ? 'video' : 'foto'
-                    )
-
+            {/* 3.5 Thumbnail Items Slider */}
+            {photos.length > 1 && (
+              <div className="space-y-2">
+                <div
+                  ref={thumbScrollRef}
+                  onScroll={handleThumbScroll}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  className="flex items-center gap-2.5 overflow-x-auto py-1 no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+                >
+                  {photos.map((p, idx) => {
+                    const isActive = idx === safePhotoIdx
                     return (
-                      <div key={idx} className="group relative rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 overflow-hidden flex flex-col shadow-sm">
-                        <div className="relative aspect-video w-full overflow-hidden bg-black/10 dark:bg-black/40">
-                          {tipe === 'video' ? (
-                            <video
-                              src={getImageUrl(url)}
-                              controls
-                              preload="metadata"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <img 
-                              src={getImageUrl(url)} 
-                              alt={`Galeri ${idx + 1}`} 
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              onError={(e) => { e.currentTarget.style.display = 'none' }}
-                            />
-                          )}
-                          <div className="absolute top-2 left-2 z-10 pointer-events-none">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider shadow-sm uppercase ${
-                              tipe === 'video' ? 'bg-amber-600 text-white' : 'bg-blue-600 text-white'
-                            }`}>
-                              {tipe === 'video' ? 'VIDEO' : 'FOTO'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                      <button
+                        key={idx}
+                        ref={(el) => (thumbRefs.current[idx] = el)}
+                        type="button"
+                        onClick={(e) => {
+                          if (hasDragged.current) {
+                            e.preventDefault()
+                            return
+                          }
+                          setActivePhotoIdx(idx)
+                        }}
+                        className={`relative shrink-0 w-[calc((100%-30px)/3.5)] min-w-[calc((100%-30px)/3.5)] max-w-[calc((100%-30px)/3.5)] aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 ${isActive
+                          ? 'border-[2.5px] border-blue-600 ring-2 ring-blue-500/20 shadow-md scale-[1.02]'
+                          : 'border border-zinc-200 dark:border-zinc-700 opacity-60 hover:opacity-100 hover:border-zinc-400'
+                          }`}
+                      >
+                        <img
+                          src={p.url}
+                          alt={`Thumbnail ${idx + 1}`}
+                          className="w-full h-full object-cover pointer-events-none"
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80'
+                          }}
+                        />
+                      </button>
                     )
                   })}
                 </div>
-              ) : (
-                <div className="p-6 text-center text-xs text-zinc-400 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-lg">
-                  Belum ada foto atau video galeri.
+
+                {/* Bottom Slider Position Indicator Track */}
+                <div className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full relative overflow-hidden">
+                  <div
+                    className="absolute top-0 bottom-0 bg-blue-600 rounded-full transition-all duration-200 ease-out"
+                    style={{
+                      width: `${indicatorWidth}%`,
+                      left: `${scrollProgress * (100 - indicatorWidth)}%`
+                    }}
+                  />
                 </div>
-              )}
+              </div>
+            )}
+          </div>
+
+          {/* 3. Navigation Tabs (Only rendered if there are ecosystem extra fields) */}
+          {ecosystemExtraFields.length > 0 && (
+            <div className="border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-around pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('profil')}
+                className={`pb-2.5 flex-1 text-center text-xs sm:text-sm font-semibold transition-all relative ${activeTab === 'profil'
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                  }`}
+              >
+                {tabProfilLabel}
+                {activeTab === 'profil' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('ekosistem')}
+                className={`pb-2.5 flex-1 text-center text-xs sm:text-sm font-semibold transition-all relative ${activeTab === 'ekosistem'
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                  }`}
+              >
+                {tabEkosistemLabel}
+                {activeTab === 'ekosistem' && (
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full" />
+                )}
+              </button>
             </div>
           )}
+
+          {/* 4. Tab Content: 2-Column Responsive Layout */}
+          <div className="pt-2">
+            {activeTab === 'profil' || ecosystemExtraFields.length === 0 ? (
+              profileExtraFields.length > 0 ? (
+                /* Profile with extra fields: Left (Tentang + Lokasi), Right (Profile extra fields) */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                  {/* LEFT COLUMN: Tentang Kawasan & Lokasi Dimensi */}
+                  <div className="space-y-4 sm:pr-3">
+                    {kst.deskripsi && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                          <span>
+                            {isKebunRaya ? 'Tentang Kebun Raya' : isBrida ? 'Profil Instansi' : 'Tentang Kawasan'}
+                          </span>
+                        </h3>
+                        {kst.deskripsi.includes('<') ? (
+                          <div
+                            className="prose prose-xs dark:prose-invert max-w-none text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed text-justify [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-1.5"
+                            dangerouslySetInnerHTML={{ __html: kst.deskripsi }}
+                          />
+                        ) : (
+                          <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-line text-justify">
+                            {kst.deskripsi}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Lokasi & Dimensi */}
+                    <div className={`space-y-2 ${kst.deskripsi ? 'pt-2 border-t border-zinc-100 dark:border-zinc-800/60' : ''}`}>
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                        <span>Lokasi & Dimensi</span>
+                      </h3>
+                      <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300">
+                        <div>
+                          <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Alamat:</strong>{' '}
+                          {kst.alamat || kst.kota_provinsi || '-'}
+                        </div>
+                        {(kst.latitude ?? kst.koordinat?.latitude) != null && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Latitude:</strong>{' '}
+                            {kst.latitude ?? kst.koordinat?.latitude}
+                          </div>
+                        )}
+                        {(kst.longitude ?? kst.koordinat?.longitude) != null && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Longitude:</strong>{' '}
+                            {kst.longitude ?? kst.koordinat?.longitude}
+                          </div>
+                        )}
+                        {kst.luas_ha != null && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Luas:</strong>{' '}
+                            {kst.luas_ha} Ha
+                          </div>
+                        )}
+                        {kst.pengelola && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Pengelola:</strong>{' '}
+                            {kst.pengelola}
+                          </div>
+                        )}
+                        {kst.status && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Status:</strong>{' '}
+                            {kst.status}
+                          </div>
+                        )}
+                        {(kst.telepon || kst.email || kst.website) && (
+                          <div className="pt-1.5 space-y-1 border-t border-zinc-100 dark:border-zinc-800/60 mt-1.5">
+                            {kst.telepon && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-semibold text-zinc-800 dark:text-zinc-200 w-16 shrink-0">&bull; Telepon:</span>
+                                <span>{kst.telepon}</span>
+                              </div>
+                            )}
+                            {kst.email && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-semibold text-zinc-800 dark:text-zinc-200 w-16 shrink-0">&bull; Email:</span>
+                                <a href={`mailto:${kst.email}`} className="text-blue-600 hover:underline">{kst.email}</a>
+                              </div>
+                            )}
+                            {kst.website && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-semibold text-zinc-800 dark:text-zinc-200 w-16 shrink-0">&bull; Website:</span>
+                                <a href={kst.website.startsWith('http') ? kst.website : `http://${kst.website}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                                  {kst.website}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COLUMN: Profile Extra Fields */}
+                  <div className="space-y-4 sm:pl-3 pt-2 sm:pt-0">
+                    {profileExtraFields.map((field) => (
+                      <DynamicFieldBlock key={field.id || field.slug} field={field} />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                /* Profile WITHOUT extra fields: Left (Tentang), Right (Lokasi & Dimensi) */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                  <div className="space-y-4 sm:pr-3">
+                    {kst.deskripsi && (
+                      <div className="space-y-2">
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                          <span>
+                            {isKebunRaya ? 'Tentang Kebun Raya' : isBrida ? 'Profil Instansi' : 'Tentang Kawasan'}
+                          </span>
+                        </h3>
+                        {kst.deskripsi.includes('<') ? (
+                          <div
+                            className="prose prose-xs dark:prose-invert max-w-none text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed text-justify [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_p]:mb-1.5"
+                            dangerouslySetInnerHTML={{ __html: kst.deskripsi }}
+                          />
+                        ) : (
+                          <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed whitespace-pre-line text-justify">
+                            {kst.deskripsi}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-4 sm:pl-3 pt-2 sm:pt-0">
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-zinc-600 dark:text-zinc-400" />
+                        <span>Lokasi & Dimensi</span>
+                      </h3>
+                      <div className="space-y-1.5 text-xs text-zinc-600 dark:text-zinc-300">
+                        <div>
+                          <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Alamat:</strong>{' '}
+                          {kst.alamat || kst.kota_provinsi || '-'}
+                        </div>
+                        {(kst.latitude ?? kst.koordinat?.latitude) != null && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Latitude:</strong>{' '}
+                            {kst.latitude ?? kst.koordinat?.latitude}
+                          </div>
+                        )}
+                        {(kst.longitude ?? kst.koordinat?.longitude) != null && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Longitude:</strong>{' '}
+                            {kst.longitude ?? kst.koordinat?.longitude}
+                          </div>
+                        )}
+                        {kst.luas_ha != null && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Luas:</strong>{' '}
+                            {kst.luas_ha} Ha
+                          </div>
+                        )}
+                        {kst.pengelola && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Pengelola:</strong>{' '}
+                            {kst.pengelola}
+                          </div>
+                        )}
+                        {kst.status && (
+                          <div>
+                            <strong className="font-semibold text-zinc-800 dark:text-zinc-200">&bull; Status:</strong>{' '}
+                            {kst.status}
+                          </div>
+                        )}
+                        {(kst.telepon || kst.email || kst.website) && (
+                          <div className="pt-1.5 space-y-1 border-t border-zinc-100 dark:border-zinc-800/60 mt-1.5">
+                            {kst.telepon && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-semibold text-zinc-800 dark:text-zinc-200 w-16 shrink-0">&bull; Telepon:</span>
+                                <span>{kst.telepon}</span>
+                              </div>
+                            )}
+                            {kst.email && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-semibold text-zinc-800 dark:text-zinc-200 w-16 shrink-0">&bull; Email:</span>
+                                <a href={`mailto:${kst.email}`} className="text-blue-600 hover:underline">{kst.email}</a>
+                              </div>
+                            )}
+                            {kst.website && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="font-semibold text-zinc-800 dark:text-zinc-200 w-16 shrink-0">&bull; Website:</span>
+                                <a href={kst.website.startsWith('http') ? kst.website : `http://${kst.website}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                                  {kst.website}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            ) : (
+              /* TAB 2: EKOSISTEM & LAYANAN (Only rendered if ecosystemExtraFields exist) */
+              ecosystemExtraFields.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                  {/* LEFT COLUMN */}
+                  <div className="space-y-4 sm:pr-3">
+                    {ecosystemExtraFields.filter((_, idx) => idx % 2 === 0).map((field) => (
+                      <DynamicFieldBlock key={field.id || field.slug} field={field} />
+                    ))}
+                  </div>
+
+                  {/* RIGHT COLUMN */}
+                  <div className="space-y-4 sm:pl-3 pt-4 sm:pt-0">
+                    {ecosystemExtraFields.filter((_, idx) => idx % 2 === 1).map((field) => (
+                      <DynamicFieldBlock key={field.id || field.slug} field={field} />
+                    ))}
+                  </div>
+                </div>
+              ) : null
+            )}
+          </div>
+
         </div>
+
       </DialogContent>
     </Dialog>
   )
 }
+
