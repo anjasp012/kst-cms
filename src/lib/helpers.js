@@ -21,6 +21,34 @@ export function getImageUrl(url) {
   return clean
 }
 
+export function getThumbnailUrl(url) {
+  if (!url) return ''
+  // If url is an object (e.g. from gallery item or API upload response)
+  if (typeof url === 'object') {
+    url = url.thumbnail_url || url.thumbnail_relative_url || url.relative_url || url.file_url || url.url || ''
+  }
+  if (typeof url !== 'string') return ''
+
+  // If already pointing to /uploads/thumbnails/
+  if (url.includes('/uploads/thumbnails/')) {
+    return getImageUrl(url)
+  }
+
+  // Video files do not have image thumbnails
+  const videoExts = ['.mp4', '.webm', '.mov', '.m4v', '.ogg', '.avi']
+  if (videoExts.some(ext => url.toLowerCase().endsWith(ext))) {
+    return getImageUrl(url)
+  }
+
+  // Convert /uploads/ to /uploads/thumbnails/
+  if (url.includes('/uploads/')) {
+    const thumbUrl = url.replace('/uploads/', '/uploads/thumbnails/')
+    return getImageUrl(thumbUrl)
+  }
+
+  return getImageUrl(url)
+}
+
 export function formatDate(dateStr) {
   if (!dateStr) return '-'
   try {

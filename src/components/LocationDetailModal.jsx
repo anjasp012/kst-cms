@@ -25,7 +25,7 @@ import {
   Users,
   ExternalLink
 } from 'lucide-react'
-import { getImageUrl } from '@/lib/helpers'
+import { getImageUrl, getThumbnailUrl } from '@/lib/helpers'
 
 const ICON_MAP = {
   Building2,
@@ -171,18 +171,21 @@ export default function LocationDetailModal({ kst, open, onClose }) {
     if (kst.thumbnail_url) {
       list.push({
         url: getImageUrl(kst.thumbnail_url),
+        thumbUrl: getThumbnailUrl(kst.thumbnail_url),
         caption: 'Foto Utama / Tampak Depan'
       })
     }
     if (Array.isArray(kst.galeri)) {
       kst.galeri.forEach((item, idx) => {
         const u = typeof item === 'string' ? item : item.url
+        const t = typeof item === 'object' && item.thumbnail_url ? item.thumbnail_url : u
         const c = typeof item === 'object' && item.caption ? item.caption : (item.keterangan || `Foto Dokumentasi ${idx + 1}`)
         if (u) {
           const resolvedUrl = getImageUrl(u)
+          const resolvedThumb = getThumbnailUrl(t)
           // avoid duplicates with thumbnail
           if (!list.some(p => p.url === resolvedUrl)) {
-            list.push({ url: resolvedUrl, caption: c })
+            list.push({ url: resolvedUrl, thumbUrl: resolvedThumb, caption: c })
           }
         }
       })
@@ -190,6 +193,7 @@ export default function LocationDetailModal({ kst, open, onClose }) {
     if (list.length === 0) {
       list.push({
         url: 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80',
+        thumbUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=400&q=80',
         caption: 'Foto Kawasan'
       })
     }
@@ -359,11 +363,12 @@ export default function LocationDetailModal({ kst, open, onClose }) {
                           }`}
                       >
                         <img
-                          src={p.url}
+                          src={p.thumbUrl || p.url}
                           alt={`Thumbnail ${idx + 1}`}
                           className="w-full h-full object-cover pointer-events-none"
+                          loading="lazy"
                           onError={(e) => {
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80'
+                            e.currentTarget.src = p.url || 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=600&q=80'
                           }}
                         />
                       </button>
