@@ -148,9 +148,16 @@ export async function fetchKSTAnalytics() {
 // =========================================================================
 // 📁 3. FILE UPLOAD MEDIA (/admin)
 // =========================================================================
-export async function uploadFile(file) {
+export async function uploadFile(file, videoThumbnail = null) {
   const formData = new FormData();
   formData.append('file', file);
+  if (videoThumbnail) {
+    if (videoThumbnail instanceof Blob && !(videoThumbnail instanceof File)) {
+      formData.append('video_thumbnail', videoThumbnail, 'video_thumb.jpg');
+    } else {
+      formData.append('video_thumbnail', videoThumbnail);
+    }
+  }
   
   const jwt = localStorage.getItem('kst_jwt');
   const headers = {};

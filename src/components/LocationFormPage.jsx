@@ -605,32 +605,29 @@ export default function LocationFormPage({ onSaveSuccess }) {
       const newItems = []
       for (const file of files) {
         try {
-          const res = await uploadFile(file)
+          const isVideo = file.type?.startsWith('video') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(file.name)
+          let thumbBlob = null
+
+          // Jika file video, capture frame snapshot otomatis via canvas di client sebelum upload
+          if (isVideo) {
+            try {
+              const frameResult = await captureVideoFrame(file, 1.0)
+              if (frameResult?.blob) {
+                thumbBlob = frameResult.blob
+              }
+            } catch (errCapture) {
+              console.warn('Gagal capture thumbnail video via canvas:', errCapture)
+            }
+          }
+
+          const res = await uploadFile(file, thumbBlob)
           const url = typeof res === 'object' && res !== null
             ? (res.relative_url || res.file_url || res.url || '')
             : String(res || '')
 
           if (!url) continue
 
-          const isVideo = file.type?.startsWith('video') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(file.name)
-          let thumbUrl = res?.thumbnail_relative_url || res?.thumbnail_url || null
-
-          // Jika file video dan belum memiliki thumbnail dari server, capture frame otomatis via canvas
-          if (isVideo) {
-            try {
-              const frameResult = await captureVideoFrame(file, 1.0)
-              if (frameResult?.blob) {
-                const cleanName = (file.name || 'video').replace(/\.[^/.]+$/, "")
-                const thumbFile = new File([frameResult.blob], `thumb_${cleanName}.jpg`, { type: 'image/jpeg' })
-                const thumbRes = await uploadFile(thumbFile)
-                thumbUrl = typeof thumbRes === 'object' && thumbRes !== null
-                  ? (thumbRes.relative_url || thumbRes.file_url || thumbRes.url || '')
-                  : String(thumbRes || '')
-              }
-            } catch (errCapture) {
-              console.warn('Gagal capture/unggah thumbnail video:', errCapture)
-            }
-          }
+          const thumbUrl = res?.thumbnail_relative_url || res?.thumbnail_url || null
 
           newItems.push({
             url,
