@@ -178,17 +178,33 @@ export default function LocationDetailModal({ kst, open, onClose }) {
       })
     }
     if (Array.isArray(kst.galeri)) {
-      kst.galeri.forEach((item, idx) => {
+      const sortedGaleri = [...kst.galeri].sort((a, b) => {
+        const sa = (typeof a === 'object' && a?.sort != null) ? Number(a.sort) : 0
+        const sb = (typeof b === 'object' && b?.sort != null) ? Number(b.sort) : 0
+        return sa - sb
+      })
+
+      sortedGaleri.forEach((item, idx) => {
         const u = typeof item === 'string' ? item : item.url
         const t = typeof item === 'object' && item.thumbnail_url ? item.thumbnail_url : u
         const c = typeof item === 'object' && item.caption ? item.caption : (item.keterangan || `Dokumentasi ${idx + 1}`)
-        const isVideo = (typeof item === 'object' && item.tipe === 'video') || isVideoUrl(u)
+        const isVideo = (typeof item === 'object' && (item.tipe === 'video' || item.type === 'video')) || isVideoUrl(u)
         if (u) {
           const resolvedUrl = getImageUrl(u)
           const resolvedThumb = getThumbnailUrl(t)
-          // avoid duplicates with thumbnail
-          if (!list.some(p => p.url === resolvedUrl)) {
-            list.push({ url: resolvedUrl, thumbUrl: resolvedThumb, caption: c, isVideo })
+          const existing = list.find(p => p.url === resolvedUrl)
+          if (existing) {
+            if (typeof item === 'object' && item.caption) {
+              existing.caption = item.caption
+            }
+          } else {
+            list.push({
+              url: resolvedUrl,
+              thumbUrl: resolvedThumb,
+              caption: c,
+              isVideo,
+              sort: (typeof item === 'object' && item.sort != null) ? Number(item.sort) : idx
+            })
           }
         }
       })

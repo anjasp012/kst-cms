@@ -45,6 +45,7 @@ import {
   X,
   ArrowLeft,
   ExternalLink,
+  ChevronLeft,
   ChevronRight,
   Eye,
   Atom,
@@ -228,23 +229,32 @@ export default function LocationFormPage({ onSaveSuccess }) {
 
         // Prepare galeri
         const rawGaleri = Array.isArray(data.galeri) ? data.galeri : []
-        const cleanGaleri = rawGaleri.map(g => {
-          if (typeof g === 'string') {
-            const isVid = /\.(mp4|webm|mov|m4v|ogg)$/i.test(g)
-            return { url: g, caption: '', tipe: isVid ? 'video' : 'foto' }
-          }
-          let url = g?.url || ''
-          if (typeof url === 'object' && url !== null) {
-            url = url.relative_url || url.file_url || url.url || ''
-          }
-          const urlStr = String(url || '')
-          const isVid = (g?.tipe === 'video') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(urlStr)
-          return {
-            url: urlStr,
-            caption: g?.caption || g?.keterangan || '',
-            tipe: isVid ? 'video' : 'foto'
-          }
-        })
+        const cleanGaleri = rawGaleri
+          .map((g, idx) => {
+            if (typeof g === 'string') {
+              const isVid = /\.(mp4|webm|mov|m4v|ogg)$/i.test(g)
+              return { url: g, thumbnail_url: null, caption: '', sort: idx, tipe: isVid ? 'video' : 'foto', type: isVid ? 'video' : 'foto' }
+            }
+            let url = g?.url || ''
+            if (typeof url === 'object' && url !== null) {
+              url = url.relative_url || url.file_url || url.url || ''
+            }
+            let thumbUrl = g?.thumbnail_url || null
+            if (typeof thumbUrl === 'object' && thumbUrl !== null) {
+              thumbUrl = thumbUrl.relative_url || thumbUrl.file_url || thumbUrl.url || null
+            }
+            const urlStr = String(url || '')
+            const isVid = (g?.tipe === 'video') || (g?.type === 'video') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(urlStr)
+            return {
+              url: urlStr,
+              thumbnail_url: thumbUrl ? String(thumbUrl) : null,
+              caption: g?.caption || g?.keterangan || '',
+              sort: g?.sort != null ? Number(g.sort) : idx,
+              tipe: isVid ? 'video' : 'foto',
+              type: isVid ? 'video' : 'foto'
+            }
+          })
+          .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
 
         let rawThumb = data.thumbnail_url || ''
         if (typeof rawThumb === 'object' && rawThumb !== null) {
@@ -634,7 +644,9 @@ export default function LocationFormPage({ onSaveSuccess }) {
             url,
             thumbnail_url: thumbUrl,
             caption: '',
-            tipe: isVideo ? 'video' : 'foto'
+            sort: formData.galeri.length + newItems.length,
+            tipe: isVideo ? 'video' : 'foto',
+            type: isVideo ? 'video' : 'foto'
           })
           successCount++
         } catch (err) {
@@ -716,13 +728,28 @@ export default function LocationFormPage({ onSaveSuccess }) {
       const items = [...prev.galeri]
       const [draggedItem] = items.splice(draggedCardIndex, 1)
       items.splice(targetIndex, 0, draggedItem)
+      const updated = items.map((it, idx) => ({ ...it, sort: idx }))
       return {
         ...prev,
-        galeri: items
+        galeri: updated
       }
     })
     setDraggedCardIndex(null)
     toast.success('Urutan galeri diperbarui')
+  }
+
+  const moveGalleryItem = (fromIdx, toIdx) => {
+    if (toIdx < 0 || toIdx >= formData.galeri.length) return
+    setFormData(prev => {
+      const items = [...prev.galeri]
+      const [item] = items.splice(fromIdx, 1)
+      items.splice(toIdx, 0, item)
+      const updated = items.map((it, idx) => ({ ...it, sort: idx }))
+      return {
+        ...prev,
+        galeri: updated
+      }
+    })
   }
 
   const handleCardDragEnd = () => {
@@ -946,16 +973,23 @@ export default function LocationFormPage({ onSaveSuccess }) {
       latitude: (formData.latitude !== '' && formData.latitude !== null && !isNaN(Number(formData.latitude))) ? Number(formData.latitude) : null,
       longitude: (formData.longitude !== '' && formData.longitude !== null && !isNaN(Number(formData.longitude))) ? Number(formData.longitude) : null,
       thumbnail_url: formData.thumbnail_url || null,
-      galeri: (formData.galeri || []).map(item => {
-        if (typeof item === 'string') return item
+      galeri: (formData.galeri || []).map((item, idx) => {
+        if (typeof item === 'string') {
+          const isVid = /\.(mp4|webm|mov|m4v|ogg)$/i.test(item)
+          return { url: item, thumbnail_url: null, caption: '', sort: idx, tipe: isVid ? 'video' : 'foto', type: isVid ? 'video' : 'foto' }
+        }
         let u = item?.url
         if (typeof u === 'object' && u !== null) {
           u = u.relative_url || u.file_url || u.url || ''
         }
+        const tipeVal = item?.tipe || item?.type || (/\.(mp4|webm|mov|m4v|ogg)$/i.test(String(u || '')) ? 'video' : 'foto')
         return {
           url: String(u || ''),
+          thumbnail_url: item?.thumbnail_url || null,
           caption: item?.caption || '',
-          tipe: item?.tipe || (/\.(mp4|webm|mov|m4v|ogg)$/i.test(String(u || '')) ? 'video' : 'foto')
+          sort: item?.sort != null ? Number(item.sort) : idx,
+          tipe: tipeVal,
+          type: tipeVal
         }
       }),
       extra_fields: formattedExtraFields,
@@ -1873,12 +1907,41 @@ export default function LocationFormPage({ onSaveSuccess }) {
                         </button>
                       </div>
 
-                      {/* Bottom: Meta (Index & Type) */}
-                      <div className="pt-2 flex items-center justify-between text-[10px] text-zinc-400 font-mono px-0.5">
-                        <span className="flex items-center gap-0.5">
-                          <GripVertical className="w-3 h-3 text-zinc-400 inline" />
-                          #{idx + 1}
-                        </span>
+                      {/* Caption Input */}
+                      <div className="mt-2">
+                        <Input
+                          type="text"
+                          value={item.caption || ''}
+                          onChange={(e) => updateGalleryCaption(idx, e.target.value)}
+                          placeholder="Tulis caption..."
+                          className="h-7 text-xs px-2 py-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/50 focus:bg-white dark:focus:bg-zinc-900 text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400"
+                          title="Tulis caption foto/video ini"
+                        />
+                      </div>
+
+                      {/* Bottom: Meta (Index, Move, & Type) */}
+                      <div className="pt-2 flex items-center justify-between text-[10px] text-zinc-400 font-mono px-0.5 border-t border-zinc-100 dark:border-zinc-800/80 mt-1.5">
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => moveGalleryItem(idx, idx - 1)}
+                            className="w-4 h-4 rounded flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                            title="Pindah urutan ke kiri"
+                          >
+                            <ChevronLeft className="w-3 h-3" />
+                          </button>
+                          <span className="font-bold text-zinc-600 dark:text-zinc-300">#{idx + 1}</span>
+                          <button
+                            type="button"
+                            disabled={idx === formData.galeri.length - 1}
+                            onClick={() => moveGalleryItem(idx, idx + 1)}
+                            className="w-4 h-4 rounded flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer"
+                            title="Pindah urutan ke kanan"
+                          >
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        </div>
                         <span className={`uppercase font-semibold text-[9px] px-1.5 py-0.5 rounded ${
                           isVideo ? 'bg-purple-100 dark:bg-purple-950 text-purple-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
                         }`}>
