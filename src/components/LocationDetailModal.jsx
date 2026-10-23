@@ -23,9 +23,11 @@ import {
   Cpu,
   Sprout,
   Users,
-  ExternalLink
+  ExternalLink,
+  Play,
+  Film
 } from 'lucide-react'
-import { getImageUrl, getThumbnailUrl } from '@/lib/helpers'
+import { getImageUrl, getThumbnailUrl, isVideoUrl } from '@/lib/helpers'
 
 const ICON_MAP = {
   Building2,
@@ -179,13 +181,14 @@ export default function LocationDetailModal({ kst, open, onClose }) {
       kst.galeri.forEach((item, idx) => {
         const u = typeof item === 'string' ? item : item.url
         const t = typeof item === 'object' && item.thumbnail_url ? item.thumbnail_url : u
-        const c = typeof item === 'object' && item.caption ? item.caption : (item.keterangan || `Foto Dokumentasi ${idx + 1}`)
+        const c = typeof item === 'object' && item.caption ? item.caption : (item.keterangan || `Dokumentasi ${idx + 1}`)
+        const isVideo = (typeof item === 'object' && item.tipe === 'video') || isVideoUrl(u)
         if (u) {
           const resolvedUrl = getImageUrl(u)
           const resolvedThumb = getThumbnailUrl(t)
           // avoid duplicates with thumbnail
           if (!list.some(p => p.url === resolvedUrl)) {
-            list.push({ url: resolvedUrl, thumbUrl: resolvedThumb, caption: c })
+            list.push({ url: resolvedUrl, thumbUrl: resolvedThumb, caption: c, isVideo })
           }
         }
       })
@@ -288,17 +291,28 @@ export default function LocationDetailModal({ kst, open, onClose }) {
 
           {/* 2. Photo Gallery: Compact Preview, Caption/Counter, 3.5-Item Thumbnail Slider & Indicator */}
           <div className="space-y-2">
-            {/* Compact Preview Image */}
-            <div className="relative w-full h-40 sm:h-44 rounded-2xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 select-none shadow-xs">
-              <img
-                src={activePhoto?.url || ''}
-                alt={activePhoto?.caption || kst?.nama || 'Foto Kawasan'}
-                className="w-full h-full object-cover transition-opacity duration-200"
-                loading="eager"
-                onError={(e) => {
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80'
-                }}
-              />
+            {/* Compact Preview Image or Video Player */}
+            <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-black border border-zinc-200/80 dark:border-zinc-800 select-none shadow-xs flex items-center justify-center">
+              {activePhoto?.isVideo ? (
+                <video
+                  key={activePhoto.url}
+                  src={activePhoto.url}
+                  poster={activePhoto.thumbUrl !== activePhoto.url && !isVideoUrl(activePhoto.thumbUrl) ? activePhoto.thumbUrl : undefined}
+                  controls
+                  playsInline
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <img
+                  src={activePhoto?.url || ''}
+                  alt={activePhoto?.caption || kst?.nama || 'Foto Kawasan'}
+                  className="w-full h-full object-cover transition-opacity duration-200"
+                  loading="eager"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80'
+                  }}
+                />
+              )}
             </div>
 
             {/* Caption & Counter Row with Next/Prev Controls */}
@@ -357,20 +371,47 @@ export default function LocationDetailModal({ kst, open, onClose }) {
                           }
                           setActivePhotoIdx(idx)
                         }}
-                        className={`relative shrink-0 w-[calc((100%-30px)/3.5)] min-w-[calc((100%-30px)/3.5)] max-w-[calc((100%-30px)/3.5)] aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 ${isActive
+                        className={`relative shrink-0 w-[calc((100%-30px)/3.5)] min-w-[calc((100%-30px)/3.5)] max-w-[calc((100%-30px)/3.5)] aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 bg-zinc-900 ${isActive
                           ? 'border-[2.5px] border-blue-600 ring-2 ring-blue-500/20 shadow-md scale-[1.02]'
-                          : 'border border-zinc-200 dark:border-zinc-700 opacity-60 hover:opacity-100 hover:border-zinc-400'
+                          : 'border border-zinc-200 dark:border-zinc-700 opacity-70 hover:opacity-100 hover:border-zinc-400'
                           }`}
                       >
-                        <img
-                          src={p.thumbUrl || p.url}
-                          alt={`Thumbnail ${idx + 1}`}
-                          className="w-full h-full object-cover pointer-events-none"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.src = p.url || 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=600&q=80'
-                          }}
-                        />
+                        {p.isVideo ? (
+                          <div className="w-full h-full relative flex items-center justify-center bg-black">
+                            {p.thumbUrl && p.thumbUrl !== p.url && !isVideoUrl(p.thumbUrl) ? (
+                              <img
+                                src={p.thumbUrl}
+                                alt={`Video Thumbnail ${idx + 1}`}
+                                className="w-full h-full object-cover pointer-events-none"
+                              />
+                            ) : (
+                              <video
+                                src={`${p.url}#t=0.5`}
+                                preload="metadata"
+                                muted
+                                className="w-full h-full object-cover pointer-events-none"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
+                              <div className="w-6 h-6 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-sm">
+                                <Play className="w-3 h-3 fill-current ml-0.5" />
+                              </div>
+                            </div>
+                            <span className="absolute bottom-1 left-1.5 px-1 py-0.2 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none">
+                              VIDEO
+                            </span>
+                          </div>
+                        ) : (
+                          <img
+                            src={p.thumbUrl || p.url}
+                            alt={`Thumbnail ${idx + 1}`}
+                            className="w-full h-full object-cover pointer-events-none"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.src = p.url || 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=600&q=80'
+                            }}
+                          />
+                        )}
                       </button>
                     )
                   })}

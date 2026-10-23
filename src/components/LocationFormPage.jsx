@@ -54,7 +54,8 @@ import {
   Info,
   Tag,
   GripVertical,
-  Film
+  Film,
+  Play
 } from 'lucide-react'
 import {
   uploadFile,
@@ -66,7 +67,7 @@ import {
   fetchThemes as fetchFokusRiset,
   createFokusRiset
 } from '@/lib/api'
-import { getImageUrl } from '@/lib/helpers'
+import { getImageUrl, isVideoUrl, captureVideoFrame } from '@/lib/helpers'
 import {
   fetchProvinces,
   fetchRegencies,
@@ -612,8 +613,28 @@ export default function LocationFormPage({ onSaveSuccess }) {
           if (!url) continue
 
           const isVideo = file.type?.startsWith('video') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(file.name)
+          let thumbUrl = res?.thumbnail_relative_url || res?.thumbnail_url || null
+
+          // Jika file video dan belum memiliki thumbnail dari server, capture frame otomatis via canvas
+          if (isVideo) {
+            try {
+              const frameResult = await captureVideoFrame(file, 1.0)
+              if (frameResult?.blob) {
+                const cleanName = (file.name || 'video').replace(/\.[^/.]+$/, "")
+                const thumbFile = new File([frameResult.blob], `thumb_${cleanName}.jpg`, { type: 'image/jpeg' })
+                const thumbRes = await uploadFile(thumbFile)
+                thumbUrl = typeof thumbRes === 'object' && thumbRes !== null
+                  ? (thumbRes.relative_url || thumbRes.file_url || thumbRes.url || '')
+                  : String(thumbRes || '')
+              }
+            } catch (errCapture) {
+              console.warn('Gagal capture/unggah thumbnail video:', errCapture)
+            }
+          }
+
           newItems.push({
             url,
+            thumbnail_url: thumbUrl,
             caption: '',
             tipe: isVideo ? 'video' : 'foto'
           })
@@ -1804,17 +1825,28 @@ export default function LocationFormPage({ onSaveSuccess }) {
                       <div className="relative aspect-video w-full rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
                         {isVideo ? (
                           <div className="w-full h-full relative flex items-center justify-center bg-black/90">
-                            <video
-                              src={getImageUrl(itemUrl)}
-                              preload="metadata"
-                              muted
-                              className="w-full h-full object-cover"
-                            />
-                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
-                              <div className="w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center backdrop-blur-xs">
-                                <Film className="w-4 h-4" />
+                            {item?.thumbnail_url ? (
+                              <img
+                                src={getImageUrl(item.thumbnail_url)}
+                                alt={`Video Thumbnail ${idx + 1}`}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <video
+                                src={`${getImageUrl(itemUrl)}#t=0.5`}
+                                preload="metadata"
+                                muted
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                            <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
+                              <div className="w-8 h-8 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-md">
+                                <Play className="w-4 h-4 fill-current ml-0.5" />
                               </div>
                             </div>
+                            <span className="absolute bottom-1 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none">
+                              VIDEO
+                            </span>
                           </div>
                         ) : (
                           <img

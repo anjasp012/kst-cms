@@ -21,6 +21,96 @@ export function getImageUrl(url) {
   return clean
 }
 
+export function isVideoUrl(val) {
+  if (!val) return false
+  if (typeof val === 'object') {
+    if (val.type?.startsWith('video')) return true
+    if (val.tipe === 'video') return true
+    val = val.url || val.relative_url || val.file_url || ''
+  }
+  const str = String(val || '').toLowerCase()
+  return /\.(mp4|webm|mov|m4v|ogg|avi|mkv)(\?.*)?$/i.test(str)
+}
+
+// In-memory cache for extracted video frame data URLs
+const videoThumbCache = new Map()
+
+export function captureVideoFrame(fileOrUrl, seekTime = 1.0) {
+  if (!fileOrUrl) return Promise.resolve(null)
+  const isFile = typeof Blob !== 'undefined' && (fileOrUrl instanceof Blob || fileOrUrl instanceof File)
+  const cacheKey = isFile ? `${fileOrUrl.name}_${fileOrUrl.size}_${fileOrUrl.lastModified}` : String(fileOrUrl)
+  
+  if (videoThumbCache.has(cacheKey)) {
+    return Promise.resolve(videoThumbCache.get(cacheKey))
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const srcUrl = isFile ? URL.createObjectURL(fileOrUrl) : getImageUrl(fileOrUrl)
+      const video = document.createElement('video')
+      video.crossOrigin = 'anonymous'
+      video.muted = true
+      video.playsInline = true
+      video.preload = 'metadata'
+      video.src = srcUrl
+
+      let isFinished = false
+      const timeout = setTimeout(() => {
+        cleanup()
+        resolve(null)
+      }, 6000)
+
+      const cleanup = () => {
+        clearTimeout(timeout)
+        if (isFile) {
+          try { URL.revokeObjectURL(srcUrl) } catch (_) {}
+        }
+        video.onloadedmetadata = null
+        video.onseeked = null
+        video.onerror = null
+      }
+
+      video.onloadedmetadata = () => {
+        const dur = video.duration || 1
+        video.currentTime = Math.min(seekTime, Math.max(0.1, dur * 0.25))
+      }
+
+      video.onseeked = () => {
+        if (isFinished) return
+        isFinished = true
+        try {
+          const w = Math.min(video.videoWidth || 640, 800)
+          const h = Math.min(video.videoHeight || 360, 450)
+          const canvas = document.createElement('canvas')
+          canvas.width = w
+          canvas.height = h
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(video, 0, 0, w, h)
+          canvas.toBlob((blob) => {
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
+            const result = { blob, dataUrl }
+            videoThumbCache.set(cacheKey, result)
+            cleanup()
+            resolve(result)
+          }, 'image/jpeg', 0.85)
+        } catch (_) {
+          cleanup()
+          resolve(null)
+        }
+      }
+
+      video.onerror = () => {
+        if (isFinished) return
+        isFinished = true
+        cleanup()
+        resolve(null)
+      }
+    } catch (_) {
+      resolve(null)
+    }
+  })
+}
+
 export function getThumbnailUrl(url) {
   if (!url) return ''
   // If url is an object (e.g. from gallery item or API upload response)
@@ -34,9 +124,8 @@ export function getThumbnailUrl(url) {
     return getImageUrl(url)
   }
 
-  // Video files do not have image thumbnails
-  const videoExts = ['.mp4', '.webm', '.mov', '.m4v', '.ogg', '.avi']
-  if (videoExts.some(ext => url.toLowerCase().endsWith(ext))) {
+  // If it's a video file, it doesn't have a direct /uploads/thumbnails/ path unless generated as .jpg
+  if (isVideoUrl(url)) {
     return getImageUrl(url)
   }
 
