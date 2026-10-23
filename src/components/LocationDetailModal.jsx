@@ -193,13 +193,6 @@ export default function LocationDetailModal({ kst, open, onClose }) {
         }
       })
     }
-    if (list.length === 0) {
-      list.push({
-        url: 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80',
-        thumbUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=400&q=80',
-        caption: 'Foto Kawasan'
-      })
-    }
     return list
   }, [kst])
 
@@ -290,146 +283,142 @@ export default function LocationDetailModal({ kst, open, onClose }) {
           </div>
 
           {/* 2. Photo Gallery: Compact Preview, Caption/Counter, 3.5-Item Thumbnail Slider & Indicator */}
-          <div className="space-y-2">
-            {/* Compact Preview Image or Video Player */}
-            <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-black border border-zinc-200/80 dark:border-zinc-800 select-none shadow-xs flex items-center justify-center">
-              {activePhoto?.isVideo ? (
-                <video
-                  key={activePhoto.url}
-                  src={activePhoto.url}
-                  poster={activePhoto.thumbUrl !== activePhoto.url && !isVideoUrl(activePhoto.thumbUrl) ? activePhoto.thumbUrl : undefined}
-                  controls
-                  playsInline
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <img
-                  src={activePhoto?.url || ''}
-                  alt={activePhoto?.caption || kst?.nama || 'Foto Kawasan'}
-                  className="w-full h-full object-cover transition-opacity duration-200"
-                  loading="eager"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=1200&q=80'
-                  }}
-                />
-              )}
-            </div>
-
-            {/* Caption & Counter Row with Next/Prev Controls */}
-            <div className="flex items-center justify-between px-1 text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="truncate max-w-[70%] font-medium text-zinc-600 dark:text-zinc-300">
-                {activePhoto?.caption || 'Foto Kawasan'}
-              </span>
-              {photos.length > 1 && (
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setActivePhotoIdx(prev => (prev === 0 ? photos.length - 1 : prev - 1))}
-                    className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
-                    aria-label="Foto Sebelumnya"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="font-mono text-zinc-400 dark:text-zinc-500 font-medium px-0.5">
-                    {safePhotoIdx + 1}/{photos.length}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setActivePhotoIdx(prev => (prev === photos.length - 1 ? 0 : prev + 1))}
-                    className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
-                    aria-label="Foto Berikutnya"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* 3.5 Thumbnail Items Slider */}
-            {photos.length > 1 && (
-              <div className="space-y-2">
-                <div
-                  ref={thumbScrollRef}
-                  onScroll={handleThumbScroll}
-                  onMouseDown={handleMouseDown}
-                  onMouseMove={handleMouseMove}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  className="flex items-center gap-2.5 overflow-x-auto py-1 no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
-                >
-                  {photos.map((p, idx) => {
-                    const isActive = idx === safePhotoIdx
-                    return (
-                      <button
-                        key={idx}
-                        ref={(el) => (thumbRefs.current[idx] = el)}
-                        type="button"
-                        onClick={(e) => {
-                          if (hasDragged.current) {
-                            e.preventDefault()
-                            return
-                          }
-                          setActivePhotoIdx(idx)
-                        }}
-                        className={`relative shrink-0 w-[calc((100%-30px)/3.5)] min-w-[calc((100%-30px)/3.5)] max-w-[calc((100%-30px)/3.5)] aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 bg-zinc-900 ${isActive
-                          ? 'border-[2.5px] border-blue-600 ring-2 ring-blue-500/20 shadow-md scale-[1.02]'
-                          : 'border border-zinc-200 dark:border-zinc-700 opacity-70 hover:opacity-100 hover:border-zinc-400'
-                          }`}
-                      >
-                        {p.isVideo ? (
-                          <div className="w-full h-full relative flex items-center justify-center bg-black">
-                            {p.thumbUrl && p.thumbUrl !== p.url && !isVideoUrl(p.thumbUrl) ? (
-                              <img
-                                src={p.thumbUrl}
-                                alt={`Video Thumbnail ${idx + 1}`}
-                                className="w-full h-full object-cover pointer-events-none"
-                              />
-                            ) : (
-                              <video
-                                src={`${p.url}#t=0.5`}
-                                preload="metadata"
-                                muted
-                                className="w-full h-full object-cover pointer-events-none"
-                              />
-                            )}
-                            <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
-                              <div className="w-6 h-6 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-sm">
-                                <Play className="w-3 h-3 fill-current ml-0.5" />
-                              </div>
-                            </div>
-                            <span className="absolute bottom-1 left-1.5 px-1 py-0.2 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none">
-                              VIDEO
-                            </span>
-                          </div>
-                        ) : (
-                          <img
-                            src={p.thumbUrl || p.url}
-                            alt={`Thumbnail ${idx + 1}`}
-                            className="w-full h-full object-cover pointer-events-none"
-                            loading="lazy"
-                            onError={(e) => {
-                              e.currentTarget.src = p.url || 'https://images.unsplash.com/photo-1541888946425-d0fbb186f5f7?auto=format&fit=crop&w=600&q=80'
-                            }}
-                          />
-                        )}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                {/* Bottom Slider Position Indicator Track */}
-                <div className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full relative overflow-hidden">
-                  <div
-                    className="absolute top-0 bottom-0 bg-blue-600 rounded-full transition-all duration-200 ease-out"
-                    style={{
-                      width: `${indicatorWidth}%`,
-                      left: `${scrollProgress * (100 - indicatorWidth)}%`
-                    }}
+          {photos.length > 0 && (
+            <div className="space-y-2">
+              {/* Compact Preview Image or Video Player */}
+              <div className="relative w-full h-44 sm:h-52 rounded-2xl overflow-hidden bg-black border border-zinc-200/80 dark:border-zinc-800 select-none shadow-xs flex items-center justify-center">
+                {activePhoto?.isVideo ? (
+                  <video
+                    key={activePhoto.url}
+                    src={activePhoto.url}
+                    poster={activePhoto.thumbUrl !== activePhoto.url && !isVideoUrl(activePhoto.thumbUrl) ? activePhoto.thumbUrl : undefined}
+                    controls
+                    playsInline
+                    className="w-full h-full object-contain"
                   />
-                </div>
+                ) : (
+                  <img
+                    src={activePhoto?.url || ''}
+                    alt={activePhoto?.caption || kst?.nama || 'Foto Kawasan'}
+                    className="w-full h-full object-cover transition-opacity duration-200"
+                    loading="eager"
+                  />
+                )}
               </div>
-            )}
-          </div>
+
+              {/* Caption & Counter Row with Next/Prev Controls */}
+              <div className="flex items-center justify-between px-1 text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="truncate max-w-[70%] font-medium text-zinc-600 dark:text-zinc-300">
+                  {activePhoto?.caption || 'Foto Kawasan'}
+                </span>
+                {photos.length > 1 && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActivePhotoIdx(prev => (prev === 0 ? photos.length - 1 : prev - 1))}
+                      className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                      aria-label="Foto Sebelumnya"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <span className="font-mono text-zinc-400 dark:text-zinc-500 font-medium px-0.5">
+                      {safePhotoIdx + 1}/{photos.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActivePhotoIdx(prev => (prev === photos.length - 1 ? 0 : prev + 1))}
+                      className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                      aria-label="Foto Berikutnya"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 3.5 Thumbnail Items Slider */}
+              {photos.length > 1 && (
+                <div className="space-y-2">
+                  <div
+                    ref={thumbScrollRef}
+                    onScroll={handleThumbScroll}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    className="flex items-center gap-2.5 overflow-x-auto py-1 no-scrollbar select-none cursor-grab active:cursor-grabbing scroll-smooth"
+                  >
+                    {photos.map((p, idx) => {
+                      const isActive = idx === safePhotoIdx
+                      return (
+                        <button
+                          key={idx}
+                          ref={(el) => (thumbRefs.current[idx] = el)}
+                          type="button"
+                          onClick={(e) => {
+                            if (hasDragged.current) {
+                              e.preventDefault()
+                              return
+                            }
+                            setActivePhotoIdx(idx)
+                          }}
+                          className={`relative shrink-0 w-[calc((100%-30px)/3.5)] min-w-[calc((100%-30px)/3.5)] max-w-[calc((100%-30px)/3.5)] aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-200 bg-zinc-900 ${isActive
+                            ? 'border-[2.5px] border-blue-600 ring-2 ring-blue-500/20 shadow-md scale-[1.02]'
+                            : 'border border-zinc-200 dark:border-zinc-700 opacity-70 hover:opacity-100 hover:border-zinc-400'
+                            }`}
+                        >
+                          {p.isVideo ? (
+                            <div className="w-full h-full relative flex items-center justify-center bg-black">
+                              {p.thumbUrl && p.thumbUrl !== p.url && !isVideoUrl(p.thumbUrl) ? (
+                                <img
+                                  src={p.thumbUrl}
+                                  alt={`Video Thumbnail ${idx + 1}`}
+                                  className="w-full h-full object-cover pointer-events-none"
+                                />
+                              ) : (
+                                <video
+                                  src={`${p.url}#t=0.5`}
+                                  preload="metadata"
+                                  muted
+                                  className="w-full h-full object-cover pointer-events-none"
+                                />
+                              )}
+                              <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
+                                <div className="w-6 h-6 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-sm">
+                                  <Play className="w-3 h-3 fill-current ml-0.5" />
+                                </div>
+                              </div>
+                              <span className="absolute bottom-1 left-1.5 px-1 py-0.2 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none">
+                                VIDEO
+                              </span>
+                            </div>
+                          ) : (
+                            <img
+                              src={p.thumbUrl || p.url}
+                              alt={`Thumbnail ${idx + 1}`}
+                              className="w-full h-full object-cover pointer-events-none"
+                              loading="lazy"
+                            />
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Bottom Slider Position Indicator Track */}
+                  <div className="w-full h-1 bg-zinc-200 dark:bg-zinc-800 rounded-full relative overflow-hidden">
+                    <div
+                      className="absolute top-0 bottom-0 bg-blue-600 rounded-full transition-all duration-200 ease-out"
+                      style={{
+                        width: `${indicatorWidth}%`,
+                        left: `${scrollProgress * (100 - indicatorWidth)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 3. Navigation Tabs (Only rendered if there are ecosystem extra fields) */}
           {ecosystemExtraFields.length > 0 && (
