@@ -95,10 +95,21 @@ export async function request(url, options = {}) {
       throw new Error('Sesi telah berakhir, silakan login kembali.');
     }
     let errorDetail = 'Permintaan gagal';
+    let errJson = null;
     try {
-      const errJson = await res.json();
-      errorDetail = errJson.detail?.responseMessage || errJson.detail || errJson.responseMessage || errJson.message || 'Terjadi kesalahan pada server';
+      errJson = await res.json();
+      errorDetail = errJson.detail?.responseMessage || errJson.detail || errJson.error_detail || errJson.responseMessage || errJson.message || 'Terjadi kesalahan pada server';
     } catch (_) { }
+
+    // Log detail error ke Console browser untuk keperluan developer/debugging
+    console.error(`🚨 [API Error ${res.status}] ${options.method || 'GET'} ${url}:`, {
+      status: res.status,
+      error: errorDetail,
+      serverMessage: errJson?.message,
+      errorType: errJson?.error_type,
+      traceback: errJson?.traceback,
+      fullResponse: errJson,
+    });
 
     if (typeof errorDetail === 'string') {
       const lowErr = errorDetail.toLowerCase();
@@ -106,12 +117,14 @@ export async function request(url, options = {}) {
         errorDetail = 'Data ini tidak dapat dihapus karena masih digunakan atau terhubung dengan data lain di sistem (misal data lokasi kawasan). Silakan ubah atau hapus data terkait terlebih dahulu.';
       } else if (lowErr.includes('uniqueviolation') || lowErr.includes('duplicate key value')) {
         errorDetail = 'Data dengan nama atau identitas tersebut sudah terdaftar di sistem. Silakan gunakan nama atau identitas lain.';
-      } else if (lowErr.includes('internal server error:') || lowErr.includes('psycopg2.')) {
-        errorDetail = 'Terjadi kendala pada sistem database saat memproses data. Silakan periksa kembali data terkait.';
       }
     }
 
-    throw new Error(errorDetail);
+    const err = new Error(typeof errorDetail === 'object' ? JSON.stringify(errorDetail) : String(errorDetail));
+    err.status = res.status;
+    err.serverData = errJson;
+    err.technicalDetail = errJson?.error_detail || errJson?.detail;
+    throw err;
   }
 
   return res.json();

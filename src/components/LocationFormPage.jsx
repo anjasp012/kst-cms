@@ -387,6 +387,7 @@ export default function LocationFormPage({ onSaveSuccess }) {
         }
 
       } catch (err) {
+        console.error('[Edit Load Error]:', err)
         toast.error(err.message || 'Gagal memuat data lokasi')
       } finally {
         if (isMounted) setLoadingInitial(false)

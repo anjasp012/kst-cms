@@ -394,7 +394,10 @@ export default function LocationManagementView({
       setSelectedKSTDetail(fullDetail)
       setDetailModalOpen(true)
     } catch (err) {
-      toast.error('Gagal memuat detail data kawasan')
+      console.error('[Open Detail Error]:', err)
+      toast.error(`Gagal memuat detail lengkap: ${err.message}`)
+      setSelectedKSTDetail(item)
+      setDetailModalOpen(true)
     }
   }
 
