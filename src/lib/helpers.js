@@ -32,6 +32,18 @@ export function isVideoUrl(val) {
   return /\.(mp4|webm|mov|m4v|ogg|avi|mkv)(\?.*)?$/i.test(str)
 }
 
+export function formatResolution(width, height) {
+  if (!width || !height) return ''
+  const minDim = Math.min(width, height)
+  if (minDim >= 2000) return '4K'
+  if (minDim >= 1400) return '2K'
+  if (minDim >= 950) return '1080p'
+  if (minDim >= 650) return '720p'
+  if (minDim >= 440) return '480p'
+  if (minDim >= 320) return '360p'
+  return `${minDim}p`
+}
+
 // In-memory cache for extracted video frame data URLs
 const videoThumbCache = new Map()
 
@@ -79,8 +91,11 @@ export function captureVideoFrame(fileOrUrl, seekTime = 1.0) {
         if (isFinished) return
         isFinished = true
         try {
-          const w = Math.min(video.videoWidth || 640, 800)
-          const h = Math.min(video.videoHeight || 360, 450)
+          const rawW = video.videoWidth || 0
+          const rawH = video.videoHeight || 0
+          const resolution = formatResolution(rawW, rawH)
+          const w = Math.min(rawW || 640, 800)
+          const h = Math.min(rawH || 360, 450)
           const canvas = document.createElement('canvas')
           canvas.width = w
           canvas.height = h
@@ -88,7 +103,7 @@ export function captureVideoFrame(fileOrUrl, seekTime = 1.0) {
           ctx.drawImage(video, 0, 0, w, h)
           canvas.toBlob((blob) => {
             const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
-            const result = { blob, dataUrl }
+            const result = { blob, dataUrl, width: rawW, height: rawH, resolution }
             videoThumbCache.set(cacheKey, result)
             cleanup()
             resolve(result)

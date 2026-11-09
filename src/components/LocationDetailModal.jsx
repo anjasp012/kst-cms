@@ -27,7 +27,7 @@ import {
   Play,
   Film
 } from 'lucide-react'
-import { getImageUrl, getThumbnailUrl, isVideoUrl } from '@/lib/helpers'
+import { getImageUrl, getThumbnailUrl, isVideoUrl, formatResolution } from '@/lib/helpers'
 
 const ICON_MAP = {
   Building2,
@@ -203,6 +203,7 @@ export default function LocationDetailModal({ kst, open, onClose }) {
               thumbUrl: resolvedThumb,
               caption: c,
               isVideo,
+              resolution: (typeof item === 'object' && item.resolution) ? item.resolution : '',
               sort: (typeof item === 'object' && item.sort != null) ? Number(item.sort) : idx
             })
           }
@@ -324,9 +325,16 @@ export default function LocationDetailModal({ kst, open, onClose }) {
 
               {/* Caption & Counter Row with Next/Prev Controls */}
               <div className="flex items-center justify-between px-1 text-xs text-zinc-500 dark:text-zinc-400">
-                <span className="truncate max-w-[70%] font-medium text-zinc-600 dark:text-zinc-300">
-                  {activePhoto?.caption || 'Foto Kawasan'}
-                </span>
+                <div className="flex items-center gap-1.5 truncate max-w-[70%]">
+                  <span className="truncate font-medium text-zinc-600 dark:text-zinc-300">
+                    {activePhoto?.caption || 'Foto Kawasan'}
+                  </span>
+                  {activePhoto?.isVideo && activePhoto?.resolution && (
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-600 text-white font-mono shrink-0">
+                      {activePhoto.resolution}
+                    </span>
+                  )}
+                </div>
                 {photos.length > 1 && (
                   <div className="flex items-center gap-1 shrink-0">
                     <button
@@ -404,8 +412,11 @@ export default function LocationDetailModal({ kst, open, onClose }) {
                                   <Play className="w-3 h-3 fill-current ml-0.5" />
                                 </div>
                               </div>
-                              <span className="absolute bottom-1 left-1.5 px-1 py-0.2 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none">
-                                VIDEO
+                              <span className="absolute bottom-1 left-1.5 px-1 py-0.2 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none flex items-center gap-1">
+                                <span>VIDEO</span>
+                                {p.resolution && (
+                                  <span className="text-blue-400 font-bold">{p.resolution}</span>
+                                )}
                               </span>
                             </div>
                           ) : (

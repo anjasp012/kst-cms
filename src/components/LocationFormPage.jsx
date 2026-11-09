@@ -69,7 +69,7 @@ import {
   fetchThemes as fetchFokusRiset,
   createFokusRiset
 } from '@/lib/api'
-import { getImageUrl, isVideoUrl, captureVideoFrame } from '@/lib/helpers'
+import { getImageUrl, isVideoUrl, captureVideoFrame, formatResolution } from '@/lib/helpers'
 import {
   fetchProvinces,
   fetchRegencies,
@@ -111,6 +111,18 @@ export default function LocationFormPage({ onSaveSuccess }) {
   const [autoCompressVideo, setAutoCompressVideo] = useState(true)
   const [isDraggingGallery, setIsDraggingGallery] = useState(false)
   const [draggedCardIndex, setDraggedCardIndex] = useState(null)
+  const [videoResolutions, setVideoResolutions] = useState({})
+
+  const handleVideoResolution = (url, w, h) => {
+    if (!url || !w || !h) return
+    const key = String(url)
+    if (!videoResolutions[key]) {
+      const label = formatResolution(w, h)
+      if (label) {
+        setVideoResolutions(prev => ({ ...prev, [key]: label }))
+      }
+    }
+  }
 
   // Active Tab: 'utama' or field.id
   const [activeTab, setActiveTab] = useState('utama')
@@ -617,6 +629,7 @@ export default function LocationFormPage({ onSaveSuccess }) {
     setUploadProgressText('Mempersiapkan file media...')
     let successCount = 0
     let compressedCount = 0
+    let uncompressedVideoCount = 0
     try {
       const newItems = []
       const totalFiles = files.length
@@ -638,6 +651,7 @@ export default function LocationFormPage({ onSaveSuccess }) {
             continue
           }
 
+          let videoResolution = ''
           // Jika file video, capture frame snapshot otomatis via canvas di client sebelum upload
           if (isVideo) {
             setUploadProgressText(
@@ -649,6 +663,9 @@ export default function LocationFormPage({ onSaveSuccess }) {
               const frameResult = await captureVideoFrame(file, 1.0)
               if (frameResult?.blob) {
                 thumbBlob = frameResult.blob
+              }
+              if (frameResult?.resolution) {
+                videoResolution = frameResult.resolution
               }
             } catch (errCapture) {
               console.warn('Gagal capture thumbnail video via canvas:', errCapture)
@@ -667,7 +684,11 @@ export default function LocationFormPage({ onSaveSuccess }) {
           const thumbUrl = res?.thumbnail_relative_url || res?.thumbnail_url || null
           if (res?.is_compressed) {
             compressedCount++
+          } else if (isVideo) {
+            uncompressedVideoCount++
           }
+
+          const finalRes = res?.resolution || (res?.is_compressed ? '720p' : videoResolution) || videoResolution
 
           newItems.push({
             url,
@@ -676,6 +697,7 @@ export default function LocationFormPage({ onSaveSuccess }) {
             sort: formData.galeri.length + newItems.length,
             tipe: isVideo ? 'video' : 'foto',
             type: isVideo ? 'video' : 'foto',
+            resolution: finalRes,
             is_compressed: Boolean(res?.is_compressed),
             compression_info: res?.compression_info || null,
             original_size: res?.original_size || file.size,
@@ -694,6 +716,11 @@ export default function LocationFormPage({ onSaveSuccess }) {
         }))
         if (compressedCount > 0) {
           toast.success(`${successCount} file berhasil diunggah (${compressedCount} video berhasil dioptimasi)`)
+        } else if (uncompressedVideoCount > 0 && autoCompressVideo) {
+          toast.info(
+            `${successCount} file berhasil diunggah. Kompresi video dilewati karena FFmpeg belum terpasang di sistem/server.`,
+            { duration: 6000 }
+          )
         } else {
           toast.success(`${successCount} file foto/video berhasil ditambahkan ke galeri`)
         }
@@ -1915,17 +1942,29 @@ export default function LocationFormPage({ onSaveSuccess }) {
                         {isVideo ? (
                           <div className="w-full h-full relative flex items-center justify-center bg-black/90">
                             {item?.thumbnail_url ? (
-                              <img
-                                src={getImageUrl(item.thumbnail_url)}
-                                alt={`Video Thumbnail ${idx + 1}`}
-                                className="w-full h-full object-cover"
-                              />
+                              <>
+                                <img
+                                  src={getImageUrl(item.thumbnail_url)}
+                                  alt={`Video Thumbnail ${idx + 1}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                {!item?.resolution && (
+                                  <video
+                                    src={`${getImageUrl(itemUrl)}#t=0.5`}
+                                    preload="metadata"
+                                    muted
+                                    className="hidden"
+                                    onLoadedMetadata={(e) => handleVideoResolution(itemUrl, e.target.videoWidth, e.target.videoHeight)}
+                                  />
+                                )}
+                              </>
                             ) : (
                               <video
                                 src={`${getImageUrl(itemUrl)}#t=0.5`}
                                 preload="metadata"
                                 muted
                                 className="w-full h-full object-cover"
+                                onLoadedMetadata={(e) => handleVideoResolution(itemUrl, e.target.videoWidth, e.target.videoHeight)}
                               />
                             )}
                             <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
@@ -1942,9 +1981,21 @@ export default function LocationFormPage({ onSaveSuccess }) {
                                 OPTIMIZED
                               </span>
                             )}
-                            <span className="absolute bottom-1 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none">
-                              VIDEO
-                            </span>
+                            {(() => {
+                              const resTag = item?.resolution || videoResolutions[String(itemUrl)] || (item?.is_compressed ? '720p' : '')
+                              return (
+                                <div className="absolute bottom-1 left-1.5 flex items-center gap-1 pointer-events-none">
+                                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-black/75 text-white font-mono">
+                                    VIDEO
+                                  </span>
+                                  {resTag && (
+                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-600/90 text-white font-mono shadow-xs">
+                                      {resTag}
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })()}
                           </div>
                         ) : (
                           <img
@@ -2017,11 +2068,16 @@ export default function LocationFormPage({ onSaveSuccess }) {
                               HEMAT
                             </span>
                           )}
-                          <span className={`uppercase font-semibold text-[9px] px-1.5 py-0.5 rounded ${
-                            isVideo ? 'bg-purple-100 dark:bg-purple-950 text-purple-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
-                          }`}>
-                            {isVideo ? 'VIDEO' : 'FOTO'}
-                          </span>
+                          {(() => {
+                            const resTag = item?.resolution || videoResolutions[String(itemUrl)] || (item?.is_compressed ? '720p' : '')
+                            return (
+                              <span className={`uppercase font-semibold text-[9px] px-1.5 py-0.5 rounded ${
+                                isVideo ? 'bg-purple-100 dark:bg-purple-950 text-purple-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+                              }`}>
+                                {isVideo ? `VIDEO${resTag ? ` • ${resTag}` : ''}` : 'FOTO'}
+                              </span>
+                            )
+                          })()}
                         </div>
                       </div>
                     </div>
