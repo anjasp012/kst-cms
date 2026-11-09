@@ -626,6 +626,18 @@ export default function LocationFormPage({ onSaveSuccess }) {
           const isVideo = file.type?.startsWith('video') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(file.name)
           let thumbBlob = null
 
+          // Validasi batas ukuran file
+          const MAX_VIDEO_SIZE = 250 * 1024 * 1024 // 250 MB
+          const MAX_IMAGE_SIZE = 30 * 1024 * 1024  // 30 MB
+          if (isVideo && file.size > MAX_VIDEO_SIZE) {
+            toast.error(`Video "${file.name}" melebihi batas 250 MB (${(file.size / (1024 * 1024)).toFixed(1)} MB)`)
+            continue
+          }
+          if (!isVideo && file.size > MAX_IMAGE_SIZE) {
+            toast.error(`Gambar "${file.name}" melebihi batas 30 MB (${(file.size / (1024 * 1024)).toFixed(1)} MB)`)
+            continue
+          }
+
           // Jika file video, capture frame snapshot otomatis via canvas di client sebelum upload
           if (isVideo) {
             setUploadProgressText(
@@ -1870,7 +1882,7 @@ export default function LocationFormPage({ onSaveSuccess }) {
                     Klik untuk Pilih atau Drag &amp; Drop Foto / Video ke Sini
                   </span>
                   <span className="text-[11px] text-zinc-400">
-                    Mendukung multi-upload gambar (JPG, PNG, WEBP) &amp; video (MP4, WEBM). Urutan foto/video dapat digeser (drag &amp; drop).
+                    Mendukung multi-upload gambar (JPG, PNG, WEBP maks 30MB) &amp; video (MP4, MOV, WEBM maks 250MB, auto-kompres web). Urutan media dapat digeser (drag &amp; drop).
                   </span>
                 </label>
               )}
