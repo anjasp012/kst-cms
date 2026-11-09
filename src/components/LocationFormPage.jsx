@@ -688,7 +688,7 @@ export default function LocationFormPage({ onSaveSuccess }) {
             uncompressedVideoCount++
           }
 
-          const finalRes = res?.resolution || (res?.is_compressed ? '720p' : videoResolution) || videoResolution
+          const finalRes = res?.resolution || (res?.is_compressed ? '1080p' : videoResolution) || videoResolution
 
           newItems.push({
             url,
@@ -715,14 +715,17 @@ export default function LocationFormPage({ onSaveSuccess }) {
           galeri: [...prev.galeri, ...newItems]
         }))
         if (compressedCount > 0) {
-          toast.success(`${successCount} file berhasil diunggah (${compressedCount} video berhasil dioptimasi)`)
-        } else if (uncompressedVideoCount > 0 && autoCompressVideo) {
-          toast.info(
-            `${successCount} file berhasil diunggah. Kompresi video dilewati karena FFmpeg belum terpasang di sistem/server.`,
-            { duration: 6000 }
-          )
+          toast.success(`${successCount} file berhasil diunggah (${compressedCount} video dikompres ke 1080p)`)
         } else {
-          toast.success(`${successCount} file foto/video berhasil ditambahkan ke galeri`)
+          const ffmpegMissing = newItems.some(it => it.compression_info && it.compression_info.toLowerCase().includes('ffmpeg'))
+          if (ffmpegMissing && autoCompressVideo) {
+            toast.info(
+              `${successCount} file berhasil diunggah. Kompresi video dilewati karena FFmpeg belum terpasang di sistem/server.`,
+              { duration: 6000 }
+            )
+          } else {
+            toast.success(`${successCount} file foto/video berhasil ditambahkan ke galeri`)
+          }
         }
       } else {
         toast.error('Gagal mengunggah file foto/video')
@@ -1846,7 +1849,7 @@ export default function LocationFormPage({ onSaveSuccess }) {
                 <label 
                   htmlFor="auto-compress-video-switch" 
                   className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer select-none bg-zinc-50 dark:bg-zinc-800/60 px-2 py-1 rounded-md border border-zinc-200/80 dark:border-zinc-700/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" 
-                  title="Otomatis kompres video ke format MP4 web (H.264 720p/1080p, hemat 60-85%) saat diunggah"
+                  title="Otomatis kompres video resolusi tinggi (>1080p seperti 4K/2K) ke 1080p Full HD saat diunggah"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-blue-500" />
                   <span className="font-medium text-[11px] hidden sm:inline">Auto-Kompres Video</span>
@@ -1972,30 +1975,6 @@ export default function LocationFormPage({ onSaveSuccess }) {
                                 <Play className="w-4 h-4 fill-current ml-0.5" />
                               </div>
                             </div>
-                            {item?.is_compressed && (
-                              <span
-                                title={item.compression_info || "Video telah dioptimasi untuk web"}
-                                className="absolute top-1 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-600/90 text-white font-mono flex items-center gap-0.5 shadow-sm pointer-events-none"
-                              >
-                                <Sparkles className="w-2.5 h-2.5" />
-                                OPTIMIZED
-                              </span>
-                            )}
-                            {(() => {
-                              const resTag = item?.resolution || videoResolutions[String(itemUrl)] || (item?.is_compressed ? '720p' : '')
-                              return (
-                                <div className="absolute bottom-1 left-1.5 flex items-center gap-1 pointer-events-none">
-                                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-black/75 text-white font-mono">
-                                    VIDEO
-                                  </span>
-                                  {resTag && (
-                                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-blue-600/90 text-white font-mono shadow-xs">
-                                      {resTag}
-                                    </span>
-                                  )}
-                                </div>
-                              )
-                            })()}
                           </div>
                         ) : (
                           <img
@@ -2059,26 +2038,16 @@ export default function LocationFormPage({ onSaveSuccess }) {
                             <ChevronRight className="w-3 h-3" />
                           </button>
                         </div>
-                        <div className="flex items-center gap-1">
-                          {isVideo && item?.is_compressed && (
-                            <span
-                              className="bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold px-1 py-0.5 rounded"
-                              title={item.compression_info || 'Video telah dioptimasi'}
-                            >
-                              HEMAT
+                        {(() => {
+                          const resTag = item?.resolution || videoResolutions[String(itemUrl)] || (item?.is_compressed ? '1080p' : '')
+                          return (
+                            <span className={`uppercase font-semibold text-[9px] px-1.5 py-0.5 rounded ${
+                              isVideo ? 'bg-purple-100 dark:bg-purple-950 text-purple-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+                            }`}>
+                              {isVideo ? (resTag ? `VIDEO ${resTag}` : 'VIDEO') : 'FOTO'}
                             </span>
-                          )}
-                          {(() => {
-                            const resTag = item?.resolution || videoResolutions[String(itemUrl)] || (item?.is_compressed ? '720p' : '')
-                            return (
-                              <span className={`uppercase font-semibold text-[9px] px-1.5 py-0.5 rounded ${
-                                isVideo ? 'bg-purple-100 dark:bg-purple-950 text-purple-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
-                              }`}>
-                                {isVideo ? `VIDEO${resTag ? ` • ${resTag}` : ''}` : 'FOTO'}
-                              </span>
-                            )
-                          })()}
-                        </div>
+                          )
+                        })()}
                       </div>
                     </div>
                   )
