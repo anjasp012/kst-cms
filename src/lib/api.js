@@ -161,7 +161,7 @@ export async function fetchKSTAnalytics() {
 // =========================================================================
 // 📁 3. FILE UPLOAD MEDIA (/admin)
 // =========================================================================
-export async function uploadFile(file, videoThumbnail = null) {
+export async function uploadFile(file, videoThumbnail = null, compress = true) {
   const formData = new FormData();
   formData.append('file', file);
   if (videoThumbnail) {
@@ -176,7 +176,8 @@ export async function uploadFile(file, videoThumbnail = null) {
   const headers = {};
   if (jwt) headers['Authorization'] = `Bearer ${jwt}`;
   
-  const res = await fetch(`${API_BASE}/admin/upload`, {
+  const queryParam = compress !== null ? `?compress=${Boolean(compress)}` : '';
+  const res = await fetch(`${API_BASE}/admin/upload${queryParam}`, {
     method: 'POST',
     headers,
     body: formData,

@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import CoordinatePicker from '@/components/ui/CoordinatePicker'
 import SimpleEditor from '@/components/ui/SimpleEditor'
+import { Switch } from '@/components/ui/switch'
 import {
   Building2,
   MapPin,
@@ -106,6 +107,8 @@ export default function LocationFormPage({ onSaveSuccess }) {
   const [loadingInitial, setLoadingInitial] = useState(isEdit)
   const [saving, setSaving] = useState(false)
   const [uploadingGallery, setUploadingGallery] = useState(false)
+  const [uploadProgressText, setUploadProgressText] = useState('')
+  const [autoCompressVideo, setAutoCompressVideo] = useState(true)
   const [isDraggingGallery, setIsDraggingGallery] = useState(false)
   const [draggedCardIndex, setDraggedCardIndex] = useState(null)
 
@@ -611,16 +614,25 @@ export default function LocationFormPage({ onSaveSuccess }) {
   const processGalleryFiles = async (files) => {
     if (!files || files.length === 0) return
     setUploadingGallery(true)
+    setUploadProgressText('Mempersiapkan file media...')
     let successCount = 0
+    let compressedCount = 0
     try {
       const newItems = []
-      for (const file of files) {
+      const totalFiles = files.length
+      for (let i = 0; i < totalFiles; i++) {
+        const file = files[i]
         try {
           const isVideo = file.type?.startsWith('video') || /\.(mp4|webm|mov|m4v|ogg)$/i.test(file.name)
           let thumbBlob = null
 
           // Jika file video, capture frame snapshot otomatis via canvas di client sebelum upload
           if (isVideo) {
+            setUploadProgressText(
+              autoCompressVideo
+                ? `[${i + 1}/${totalFiles}] Mengunggah & mengompres video: ${file.name}...`
+                : `[${i + 1}/${totalFiles}] Mengunggah video: ${file.name}...`
+            )
             try {
               const frameResult = await captureVideoFrame(file, 1.0)
               if (frameResult?.blob) {
@@ -629,9 +641,11 @@ export default function LocationFormPage({ onSaveSuccess }) {
             } catch (errCapture) {
               console.warn('Gagal capture thumbnail video via canvas:', errCapture)
             }
+          } else {
+            setUploadProgressText(`[${i + 1}/${totalFiles}] Mengunggah gambar: ${file.name}...`)
           }
 
-          const res = await uploadFile(file, thumbBlob)
+          const res = await uploadFile(file, thumbBlob, autoCompressVideo)
           const url = typeof res === 'object' && res !== null
             ? (res.relative_url || res.file_url || res.url || '')
             : String(res || '')
@@ -639,6 +653,9 @@ export default function LocationFormPage({ onSaveSuccess }) {
           if (!url) continue
 
           const thumbUrl = res?.thumbnail_relative_url || res?.thumbnail_url || null
+          if (res?.is_compressed) {
+            compressedCount++
+          }
 
           newItems.push({
             url,
@@ -646,7 +663,11 @@ export default function LocationFormPage({ onSaveSuccess }) {
             caption: '',
             sort: formData.galeri.length + newItems.length,
             tipe: isVideo ? 'video' : 'foto',
-            type: isVideo ? 'video' : 'foto'
+            type: isVideo ? 'video' : 'foto',
+            is_compressed: Boolean(res?.is_compressed),
+            compression_info: res?.compression_info || null,
+            original_size: res?.original_size || file.size,
+            compressed_size: res?.compressed_size || null
           })
           successCount++
         } catch (err) {
@@ -659,12 +680,17 @@ export default function LocationFormPage({ onSaveSuccess }) {
           ...prev,
           galeri: [...prev.galeri, ...newItems]
         }))
-        toast.success(`${successCount} file foto/video berhasil ditambahkan ke galeri`)
+        if (compressedCount > 0) {
+          toast.success(`${successCount} file berhasil diunggah (${compressedCount} video berhasil dioptimasi)`)
+        } else {
+          toast.success(`${successCount} file foto/video berhasil ditambahkan ke galeri`)
+        }
       } else {
         toast.error('Gagal mengunggah file foto/video')
       }
     } finally {
       setUploadingGallery(false)
+      setUploadProgressText('')
     }
   }
 
@@ -1777,9 +1803,25 @@ export default function LocationFormPage({ onSaveSuccess }) {
                 <ImageIcon className="w-4 h-4 text-purple-600" />
                 <span>Galeri</span>
               </div>
-              <span className="text-[11px] text-zinc-400 font-mono">
-                {formData.galeri.length} Foto / Media
-              </span>
+              <div className="flex items-center gap-3">
+                <label 
+                  htmlFor="auto-compress-video-switch" 
+                  className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400 cursor-pointer select-none bg-zinc-50 dark:bg-zinc-800/60 px-2 py-1 rounded-md border border-zinc-200/80 dark:border-zinc-700/60 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors" 
+                  title="Otomatis kompres video ke format MP4 web (H.264 720p/1080p, hemat 60-85%) saat diunggah"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                  <span className="font-medium text-[11px] hidden sm:inline">Auto-Kompres Video</span>
+                  <Switch
+                    id="auto-compress-video-switch"
+                    checked={autoCompressVideo}
+                    onCheckedChange={setAutoCompressVideo}
+                    className="scale-75 origin-right"
+                  />
+                </label>
+                <span className="text-[11px] text-zinc-400 font-mono">
+                  {formData.galeri.length} Foto / Media
+                </span>
+              </div>
             </div>
 
             {/* Direct Multi-Upload Dropzone with Drag & Drop */}
@@ -1806,7 +1848,10 @@ export default function LocationFormPage({ onSaveSuccess }) {
               {uploadingGallery ? (
                 <div className="flex flex-col items-center gap-2 text-blue-600 py-3">
                   <Loader2 className="w-8 h-8 animate-spin" />
-                  <span className="text-xs font-semibold">Mengunggah file foto/video...</span>
+                  <span className="text-xs font-semibold">{uploadProgressText || 'Mengunggah file foto/video...'}</span>
+                  {autoCompressVideo && (
+                    <span className="text-[11px] text-zinc-400">File video dioptimasi ke format MP4 streaming web</span>
+                  )}
                 </div>
               ) : isDraggingGallery ? (
                 <div className="flex flex-col items-center gap-2 text-blue-600 py-2 pointer-events-none">
@@ -1876,6 +1921,15 @@ export default function LocationFormPage({ onSaveSuccess }) {
                                 <Play className="w-4 h-4 fill-current ml-0.5" />
                               </div>
                             </div>
+                            {item?.is_compressed && (
+                              <span
+                                title={item.compression_info || "Video telah dioptimasi untuk web"}
+                                className="absolute top-1 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-emerald-600/90 text-white font-mono flex items-center gap-0.5 shadow-sm pointer-events-none"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                OPTIMIZED
+                              </span>
+                            )}
                             <span className="absolute bottom-1 left-1.5 px-1.5 py-0.5 rounded text-[8px] font-bold bg-black/75 text-white font-mono pointer-events-none">
                               VIDEO
                             </span>
@@ -1942,11 +1996,21 @@ export default function LocationFormPage({ onSaveSuccess }) {
                             <ChevronRight className="w-3 h-3" />
                           </button>
                         </div>
-                        <span className={`uppercase font-semibold text-[9px] px-1.5 py-0.5 rounded ${
-                          isVideo ? 'bg-purple-100 dark:bg-purple-950 text-purple-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
-                        }`}>
-                          {isVideo ? 'VIDEO' : 'FOTO'}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          {isVideo && item?.is_compressed && (
+                            <span
+                              className="bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 text-[8px] font-bold px-1 py-0.5 rounded"
+                              title={item.compression_info || 'Video telah dioptimasi'}
+                            >
+                              HEMAT
+                            </span>
+                          )}
+                          <span className={`uppercase font-semibold text-[9px] px-1.5 py-0.5 rounded ${
+                            isVideo ? 'bg-purple-100 dark:bg-purple-950 text-purple-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500'
+                          }`}>
+                            {isVideo ? 'VIDEO' : 'FOTO'}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )
